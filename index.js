@@ -1,4 +1,5 @@
 var myRef = new Firebase('https://thingswithbeth.firebaseio.com/');
+var players = myRef.child('players');
 var missionRef = myRef.child('roll');
 
 missionRef.on("value", function(snapshot) {
@@ -49,6 +50,11 @@ function submitroll() {
                 $('#totalroll').text(totalRoll).animate(100);
             }
         }, 25);
+}
+
+function addPlayer() {
+  var name = $('#name').value();
+  players.set({name: 'ye'});
 }
 
 function updateStyle() {
