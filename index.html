@@ -9,17 +9,26 @@
 	<link rel="stylesheet" type="text/css" href="index.css">
 	</head>
 	<body>
-		<div id="container" onclick="updateStyle()">
-			<h1>Things</h1>
-			<form id="mission">
-				<div id="play_container">
-					<input id="name" type="text">
-					<button id="play" type="button" onclick="addPlayer()">Play</button>
-				</div>
-				<div id="watch_container">
-					<button id="watch" type="button">Watch</button>
-				</div>
-			</form>
+		<div id="prompt_container">
+			<div id="name_container">
+				<input id="name" type="text" maxlength="8">
+				<button id="play" type="button" onclick="addPlayer()">Join</button>
 			</div>
+			<div id="submit_container">
+			  <textarea id="response" maxlength="80"></textarea>
+			  <button id="submit" type="button" onclick="submit()">Submit</button>
+			</div>
+			<div id="guessed_container">
+			  <button id="guessed" type="button" onclick="reportGuess()">Guessed</button>
+			</div>
+		</div>
+		<div id="watch_container">
+		  <div id="responses"></div>
+		  <div id="players"></div>
+		</div>
+		<div id="settings_container">
+			<button id="new_round" type="button" onclick="newRound()">New Round</button>
+			<button id="manage_players" type="button" onclick="toggleRemoveButtons()">Manage Players</button>
+		</div>
 	</body>
 </html>
