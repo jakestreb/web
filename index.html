@@ -1,34 +1,19 @@
 <!DOCTYPE html>
 <html>
 	<head>
-	<title>Things</title>
-	<script src='https://cdn.firebase.com/js/client/2.2.1/firebase.js'></script>
+	<script src='https://cdn.firebase.com/js/client/2.4.1/firebase.js'></script>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
 	<script type="text/javascript" src="index.js"></script>
 	<meta name="viewport" content='width=400'>
 	<link rel="stylesheet" type="text/css" href="index.css">
 	</head>
 	<body>
-		<div id="prompt_container">
-			<div id="name_container">
-				<input id="name" type="text" maxlength="8">
-				<button id="play" type="button" onclick="addPlayer()">Join</button>
-			</div>
-			<div id="submit_container">
-			  <textarea id="response" maxlength="80"></textarea>
-			  <button id="submit" type="button" onclick="submit()">Submit</button>
-			</div>
-			<div id="guessed_container">
-			  <button id="guessed" type="button" onclick="reportGuess()">Guessed</button>
-			</div>
-		</div>
-		<div id="watch_container">
-		  <div id="responses"></div>
-		  <div id="players"></div>
-		</div>
-		<div id="settings_container">
-			<button id="new_round" type="button" onclick="newRound()">New Round</button>
-			<button id="manage_players" type="button" onclick="toggleRemoveButtons()">Manage Players</button>
+		<div id="join_container">
+			<div>Name: <input id="name" type="text" maxlength="8"></div>
+			<div>Game: <input id="game" type="text"></div>
+			<button id="join" type="button" onclick="joinGame()">Join</button>
+			<button id="watch" type="button" onclick="watchGame()">Watch</button>
+			<button id="host" type="button" onclick="newGame()">Host</button>
 		</div>
 	</body>
 </html>

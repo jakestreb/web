@@ -31,6 +31,7 @@ body {
 }
 
 #settings_container {
+	display: none;
 	text-align: center;
 	margin: 20px 0;
 }
@@ -94,7 +95,6 @@ body {
 }
 
 .remove {
-	display: none;
 	float: left;
 	font-size: 0.8rem;
 	margin-bottom: 4px;
@@ -112,6 +112,10 @@ body {
 .ready {
 	font-size: 0.7rem;
 	float: right;
+}
+
+.option:hover {
+	cursor: pointer;
 }
 
 button {
