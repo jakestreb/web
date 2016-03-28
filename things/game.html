@@ -1,0 +1,46 @@
+<html>
+  <div id="settings">
+    <button id="leave" type="button">Leave Game</button>
+  </div>
+  <div id="host_settings">
+    <button id="new_round" type="button">New Round</button>
+    <button id="end" type="button">End Game</button>
+  </div>
+  <div id="info_container"></div>
+  <div id="prompt_container">
+    <div id="submit_container">
+      <textarea id="response" maxlength="80"></textarea>
+      <button id="submit" type="button">Submit</button>
+    </div>
+    <div id="guessed_container">
+      <button id="guessed" type="button">Guessed</button>
+    </div>
+  </div>
+  <div id="watch_container">
+    <div id="question"></div>
+    <div class="timer">
+      <pie class="left_half"></pie>
+      <pie class="slice"></pie>
+      <pie class="mask_slice"></pie>
+    </div>
+    <div id="questions">
+      <div id="a" class="choice_container">
+        <div class="choice_label">A</div>
+        <div id="choice_a" class="choice"></div>
+        <div id="votes_a" class="votes"></div>
+      </div>
+      <div id="b" class="choice_container">
+        <div class="choice_label">B</div>
+        <div id="choice_b" class="choice"></div>
+        <div id="votes_b" class="votes"></div>
+      </div>
+      <div id="c" class="choice_container">
+        <div class="choice_label">C</div>
+        <div id="choice_c" class="choice"></div>
+        <div id="votes_c" class="votes"></div>
+      </div>
+    </div>
+    <div id="responses"></div>
+  </div>
+  <div id="players"></div>
+</html>
