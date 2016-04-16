@@ -1,0 +1,44 @@
+#responses {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.response {
+  position: relative;
+  margin: 10px 30px;
+}
+
+.response_content {
+  color: black;
+  padding: 0 25px;
+  border-radius: 3px;
+  border-bottom-right-radius: 0;
+  word-wrap: break-word;
+}
+
+.response_quotes:before {
+  content: "\201C";
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 2.0rem;
+  line-height: 2.0rem;
+  color: #DDD;
+}
+
+.response_quotes:after {
+  content: "\201D";
+  position: absolute;
+  right: 0;
+  top: 0;
+  font-size: 2.0rem;
+  line-height: 2.0rem;
+  color: #DDD;
+}
+
+.response_content.eliminated {
+  text-decoration: line-through;
+  color: #CCCCBB;
+}

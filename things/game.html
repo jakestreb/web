@@ -1,29 +1,16 @@
 <html>
-  <div id="settings">
-    <button id="leave" type="button">Leave Game</button>
-  </div>
-  <div id="host_settings">
-    <button id="new_round" type="button">New Round</button>
-    <button id="end" type="button">End Game</button>
-  </div>
-  <div id="info_container"></div>
-  <div id="prompt_container">
-    <div id="submit_container">
-      <textarea id="response" maxlength="80"></textarea>
-      <button id="submit" type="button">Submit</button>
+  <div id="game_content">
+    <div id="header">
+      <div id="header_name"></div>
+      <div id="header_game"></div>
+      <div id="settings" class='fa fa-cog'></div>
     </div>
-    <div id="guessed_container">
-      <button id="guessed" type="button">Guessed</button>
-    </div>
-  </div>
-  <div id="watch_container">
-    <div id="question"></div>
-    <div class="timer">
-      <pie class="left_half"></pie>
-      <pie class="slice"></pie>
-      <pie class="mask_slice"></pie>
-    </div>
-    <div id="questions">
+    <div id="questions" class="flexy">
+      <div class="timer">
+        <pie class="left_half"></pie>
+        <pie class="slice"></pie>
+        <pie class="mask_slice"></pie>
+      </div>
       <div id="a" class="choice_container">
         <div class="choice_label">A</div>
         <div id="choice_a" class="choice"></div>
@@ -40,7 +27,25 @@
         <div id="votes_c" class="votes"></div>
       </div>
     </div>
-    <div id="responses"></div>
+    <div id="prompt_container">
+      <div id="submit_container">
+        <div class="input_container">
+          <input id="response" maxlength="120"></input>
+          <div class="input_shadow"></div>
+        </div>
+        <button id="submit" type="button">Submit</button>
+      </div>
+      <div id="guessed_container">
+        <button id="guessed" type="button">Response guessed</button>
+        <button id="complete" type="button">Round complete</button>
+      </div>
+      <div id="scoring_container">
+        <button id="set_scores" type="button">Set scores</button>
+        <button id="next_round" type="button">Next round</button>
+      </div>
+    </div>
+    <div id="responses" class="flexy"></div>
+    <div id="divider"></div>
+    <div id="players" class="flexy"></div>
   </div>
-  <div id="players"></div>
 </html>

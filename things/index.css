@@ -1,119 +1,169 @@
+html {
+	width: 100%;
+	height: 100%;
+}
+
 body {
 	font-size: 1.1rem;
 	width: 100%;
 	height: 100%;
-	font-family: "Arial";
+	font-family: "Helvetica";
 	margin: 0;
 	background-color: #F6F6F6;
 }
 
-#prompt_container {
+#login_page {
+	display: flex;
+	width: 100%;
+	height: 100%;
+	align-items: center;
+	justify-content: space-around;
+	flex-wrap: wrap;
+}
+
+.login_flex_item {
+	flex: 1 1 auto;
+	min-width: 240px;
 	text-align: center;
-	margin: 20px 0;
+}
+
+.basicContext {
+	font-size: 0.8rem;
+	padding: 1px;
+}
+
+#active_games {
+	height: 200px;
+	width: 240px;
+	margin: 10px auto;
+	overflow: scroll;
+	border: 1px solid #CCC;
+	border-radius: 2px;
+}
+
+.active_game {
+	width: 100%;
+	height: 26px;
+	border-bottom: 1px solid #DDD;
+	padding: 10px;
+	text-align: left;
+}
+.active_game.selected {
+	background-color: #EEE;
+}
+
+#no_games {
+	margin-top: 90px;
+	color: #888;
 }
 
 #name_container {
-	display: none;
+  display: none;
+  width: 100%;
+  text-align: center;
 }
 
-#submit_container {
-	display: none;
+#name {
+	min-width: 200px;
+	max-width: 400px;
+	width: 40%;
 }
 
-#guessed_container {
-	display: none;
+#color_picker {
+	margin: 20px auto;
 }
 
-#watch_container {
+#blue {
+	background-color: #516B97;
+}
+
+#green {
+	background-color: #8CC454;
+}
+
+#red {
+	background-color: #C45454;
+}
+
+#orange {
+	background-color: #D6A242;
+}
+
+.color {
 	display: inline-block;
-	width: 100%;
+	width: 20px;
+	height: 20px;
+	border-radius: 10px;
+	margin: 10px;
+	border: 3px solid #F6F6F6;
 }
 
-#host_settings {
-	display: inline-block;
-	float: right;
-	text-align: center;
-	margin: 10px 0;
-}
-
-#settings {
-	display: inline-block;
-	float: right;
-	text-align: center;
-	margin: 10px 0;
-}
-
-#responses {
-	display: inline-block;
-	float: left;
-}
-
-.response {
-	position: relative;
-	margin: 8px 5px;
-
-}
-
-.response_content {
-	color: black;
-	background-color: #FFFFEE;
-	padding: 20px;
-	border-radius: 3px;
-	border-bottom-right-radius: 0;
-	width: 200px;
-	word-wrap: break-word
-}
-
-.response_triangle {
-	position: absolute;
-	right: 0;
-	bottom: 0;
-	width: 0;
-	height: 0;
-	border-top: 10px solid transparent;
-	border-right: 10px solid transparent;
-	border-bottom: 10px solid #FFFFEE;
-	border-left: 10px solid #FFFFEE;
-	margin-right: -20px;
-}
-
-.response_content.eliminated {
-	text-decoration: line-through;
-	color: #CCCCBB;
+.color.selected {
+	border: 3px solid #DDD;
 }
 
 button {
-	padding: 5px;
+	line-height: 36px;
+	vertical-align: bottom;
 	border: none;
-	background-color: white;
-	height: 30px;
+	padding: 0 5px;
+	background-color: #516B97;
+	color: white;
 	font-size: 0.9rem;
-	font-family: "Geneva";
+	font-weight: 300;
 	outline: none;
+	border-radius: 2px;
 }
-
 button:hover {
-	background-color: #DDDDDD;
+	background-color: #415B87;
 	cursor: pointer;
 }
 
-textarea {
-	resize: none;
-	width: 200px;
-	height: 30px;
-	outline: none;
-	border: none;
-	padding: 0;
-	vertical-align: bottom;
-	font-size: 0.85rem;
+.big_button {
+	height: 60px;
+	width: 120px;
+	font-size: 1.2rem;
 }
 
-input {
-	width: 200px;
-	height: 30px;
-	outline: none;
-	border: none;
-	padding: 0;
-	vertical-align: bottom;
-	font-size: 1.6rem;
+.button_group {
+	margin: 0 auto;
 }
+
+.input_container {
+	position: relative;
+  display: inline-block;
+	width: 60%;
+	height: 36px;
+}
+.input_shadow {
+	position: absolute;
+	left: 0;
+	bottom: -3px;
+	width: 100%;
+	height: 42px;
+	box-shadow: inset 0 -4px 0 2px rgba(0, 0, 0, 0.10);
+	border-radius: 30px / 5px;
+	pointer-events: none
+}
+.input_shadow:before {
+	position: absolute;
+	left: 0;
+	bottom: 0;
+	width: 100%;
+	height: 3px;
+	background-color: #F6F6F6;
+	content: '';
+}
+input {
+	box-sizing: border-box;
+	width: 100%;
+  height: 36px;
+	outline: none;
+	padding: 2px;
+	vertical-align: bottom;
+	font-size: 1.2rem;
+	font-weight: 300;
+	background-color: white;
+	border: 1px solid #DDD;
+}
+

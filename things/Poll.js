@@ -8,6 +8,7 @@ var DURATION = 3000;
 function Poll(game) {
   this.game = game;
   this.timer = new Timer();
+  this.spinner = new Spinner();
 
   this.pollObj = this.game.gameObj.child('poll');
 
@@ -18,25 +19,38 @@ function Poll(game) {
   this.count = { a: 0, b: 0, c: 0 };
 
   util.bindFunc(this.pollObj.child('choices'), this.onChoicesUpdate.bind(this));
+  util.bindFunc(this.pollObj.child('allowVoting'), this.onAllowVotingUpdate.bind(this));
   util.bindFunc(this.pollObj.child('votes'), this.onVotesUpdate.bind(this));
   util.bindFunc(this.pollObj.child('timeout'), this.onTimeoutChange.bind(this));
-
-  $("#a").on('click', this.onVote.bind(this, 'a'));
-  $("#b").on('click', this.onVote.bind(this, 'b'));
-  $("#c").on('click', this.onVote.bind(this, 'c'));
+  util.bindFunc(this.pollObj.child('spinner'), this.onSpinnerUpdate.bind(this));
 }
 
+Poll.prototype.onAllowVotingUpdate = function(allowVoting) {
+  if (allowVoting) {
+    $("#a").on('click', this.onVote.bind(this, 'a'));
+    $("#b").on('click', this.onVote.bind(this, 'b'));
+    $("#c").on('click', this.onVote.bind(this, 'c'));
+    this.timer.show();
+  }
+  else {
+    $(".choice_container").off('click');
+    this.timer.hide();
+  }
+};
+
 Poll.prototype.pickChoices = function() {
-  // TODO: Picked questions should not allow repeats
   var allQuestions = this.game.app.jsonData.questions;
+  var picks = util.randomPicks(allQuestions, 3);
   this.game.gameObj.update({
     responses: null,
     poll: {
+      allowVoting: true,
       choices: {
-        a: util.randomPick(allQuestions),
-        b: util.randomPick(allQuestions),
-        c: util.randomPick(allQuestions)
-      }
+        a: picks[0],
+        b: picks[1],
+        c: picks[2]
+      },
+      timeout: 'ready'
     }
   });
 };
@@ -59,8 +73,6 @@ Poll.prototype.onVotesUpdate = function(votesInfo) {
   this.votesInfo = votesInfo || {};
   this.count = { a: 0, b: 0, c: 0 };
   util.forEach(this.votesInfo, voteData => this.count[voteData.vote]++);
-  // Print current counts in each selection
-  util.forEach(this.count, (val, key) => $('#voters_' + key).html(val));
 
   var numVoters = util.size(this.votesInfo);
 
@@ -68,19 +80,21 @@ Poll.prototype.onVotesUpdate = function(votesInfo) {
   if (numVoters === 0) {
     $('.voters').each((i, match) => match.innerHTML = "");
   }
-  // If someone voted, set the timeout.
-  if (numVoters > 0 && !this.timeout) {
-    this.pollObj.update({timeout: Date.now() + DURATION});
+  // If someone voted, and it isn't already set, set the timeout.
+  if (numVoters > 0) {
+    this.pollObj.child('timeout').transaction(currTimeout => {
+      return currTimeout === 'ready' ? Date.now() + DURATION : undefined;
+    });
   }
   // If everyone voted, pick question and change state to respond.
-  if (numVoters === this.game.players.count() && false) {
+  if (numVoters === this.game.players.count()) {
     this.timer.stop();
   }
 };
 
 Poll.prototype.onTimeoutChange = function(timeout) {
   this.timeout = timeout;
-  if (timeout) {
+  if (typeof timeout === 'number') {
     this.timer.start(timeout, () => {
       if (this.game.isHost) {
         this.pickWinner();
@@ -104,15 +118,39 @@ Poll.prototype.onVote = function(choice) {
   this.game.playerObj.child('vote').set(choice);
 };
 
+// Only called by host
 Poll.prototype.pickWinner = function() {
   var maxVotes = Math.max.apply(null, util.values(this.count));
   var finalists = Object.keys(this.count).filter(choice => {
     return this.count[choice] === maxVotes;
   });
+  if (finalists.length > 1) {
+    this.pollObj.child('spinner').update({
+      choices: finalists.join(''),
+      sequence: Spinner.randomSequence(),
+      startIndex: Math.floor(Math.random() * finalists.length)
+    });
+  }
+  else {
+    this.submitWinner(finalists[0]);
+  }
+};
+
+Poll.prototype.onSpinnerUpdate = function(spinObj) {
+  if (spinObj && spinObj.sequence) {
+    this.spinner.start(spinObj.choices, spinObj.sequence, spinObj.startIndex, item => {
+      if (this.game.isHost) {
+        this.submitWinner(item);
+      }
+    });
+  }
+};
+
+// Only called by host
+Poll.prototype.submitWinner = function(winner) {
   this.game.gameObj.update({
-    question: this.choicesInfo[util.randomPick(finalists)],
+    question: winner,
     state: State.RESPOND,
-    timeout: null
   });
 };
 
@@ -133,28 +171,22 @@ Timer.prototype.start = function(timeout, stopCallback) {
 };
 
 Timer.prototype.buildDom = function(timeout) {
-  var time = Date.now();
-  var ms;
-  // var seconds = Math.floor(ms / 1000);
-  // var tenths = Math.floor((ms / 100) % 10);
-  // $("#timer").html(ms < 0 ? ms : seconds + "." + tenths);
+  var timeLeft = timeout - Date.now();
   var half = DURATION / 2;
-  var halftime = timeout - half;
   var frac;
   var deg;
-  if (time < halftime) {
+  if (timeLeft > half) {
     $('.mask_slice').hide();
     $('.slice').show();
     // Slice goes 90deg -> 270deg
-    frac = 1 - ((halftime - time) / half);
+    frac = 1 - ((timeLeft - half) / half);
     deg = (frac * 180);
-    console.warn(frac, deg);
     $('.slice').css('transform', 'rotate(' + deg + 'deg)');
   }
-  else if (time < timeout) {
+  else if (timeLeft < half && timeLeft > 0) {
     $('.slice').hide();
     $('.mask_slice').show();
-    frac = 1 - ((timeout - time) / half);
+    frac = 1 - (timeLeft / half);
     deg = (frac * 180);
     $('.mask_slice').css('transform', 'rotate(' + deg + 'deg)');
   }
@@ -165,9 +197,74 @@ Timer.prototype.buildDom = function(timeout) {
 
 Timer.prototype.stop = function() {
   window.clearInterval(this.intervalId);
-  $("#timer").html("");
   this.isRunning = false;
   this.stopCallback();
+};
+
+Timer.prototype.show = function() {
+  $('.timer').show();
+  $('.slice').css('transform', 'rotate(0deg)');
+  $('.slice').show();
+  $('.mask_slice').hide();
+};
+
+Timer.prototype.hide = function() {
+  $('.timer').hide();
+};
+
+
+// A random selection spinner
+function Spinner() {
+  this.intervalId = null;
+  this.isRunning = false;
+  this.stopCallback = () => {};
+}
+
+Spinner.prototype.start = function(choices, seq, startIndex, stopCallback) {
+  if (this.isRunning) {
+    return;
+  }
+  this.isRunning = true;
+  this.stopCallback = stopCallback;
+  this.intervalId = window.setInterval(
+    this.buildDom.bind(this), 10, choices, seq, startIndex
+  );
+};
+
+Spinner.prototype.buildDom = function(choices, seq, startIndex) {
+  var now = Date.now();
+  for (var i = 0; i < seq.length - 1; i++) {
+    if (now >= seq[i] && now < seq[i + 1]) {
+      var pick = choices[(startIndex + i) % choices.length];
+      $('.choice_container').removeClass('selected');
+      $('#' + pick).addClass('selected');
+      return;
+    }
+  }
+  if (now >= seq[seq.length - 1]) {
+    this.stop(choices[(startIndex + seq.length - 2) % choices.length]);
+  }
+};
+
+Spinner.prototype.stop = function(winner) {
+  window.clearInterval(this.intervalId);
+  this.isRunning = false;
+  this.stopCallback(winner);
+};
+
+// Generates a random sequence that is delayed over time
+Spinner.randomSequence = function() {
+  // Sequences of time values on which to change selection
+  var seq = [];
+  var time = Date.now();
+  var delay = 50;
+  while (delay < 800 + (Math.random() * 100)) {
+    seq.push(time);
+    time += delay;
+    delay *= 1.2 + (Math.random() * 0.05);
+  }
+  seq.push(time);
+  return seq;
 };
 
 module.exports = Poll;

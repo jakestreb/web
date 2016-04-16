@@ -6,6 +6,12 @@ var util = require('./util.js');
 function App() {
   this.database = new Firebase('https://thingswithbeth.firebaseio.com/');
 
+  this.selectedName = null;
+  this.selectedGame = null;
+
+  this.foundGame = null;
+  this.isHost = false;
+
   this.urlGameKey = null;
   this.urlPlayerKey = null;
 
@@ -18,11 +24,39 @@ function App() {
 
   this.database.once('value', snapshot => {
     this.attemptURLConnect(snapshot);
-    $('#join').on('click', this.onJoinButton.bind(this, snapshot));
-    $('#host').on('click', this.onHostButton.bind(this, snapshot));
-    $('#watch').on('click', this.onJoinButton.bind(this, snapshot, true));
+    this.buildStartPage(snapshot);
   });
 }
+
+App.prototype.buildStartPage = function(snapshot) {
+  var first = true;
+  snapshot.forEach(game => {
+    var animal = game.val().animal;
+    if (first) {
+      $('#active_games').html(
+        "<div class='active_game selected'>" + game.val().animal + "</div>"
+      );
+      this.selectedGame = animal;
+    }
+    else {
+      $('#active_games').append(
+        "<div class='active_game'>" + game.val().animal + "</div>"
+      );
+    }
+    $('.active_game:last').on('click', event => {
+      this.selectedGame = animal;
+      $('.active_game').removeClass('selected');
+      $(event.target).addClass('selected');
+    });
+    first = false;
+  });
+
+  $('#join').on('click', this.onJoinButton.bind(this, snapshot));
+  $('#host').on('click', this.onHostButton.bind(this, snapshot));
+  $('#watch').on('click', this.onJoinButton.bind(this, snapshot, true));
+  $('.color').on('click', this.onClickColor.bind(this));
+  $('#submit_name').on('click', this.onSubmitNameButton.bind(this));
+};
 
 App.prototype.attemptURLConnect = function(snapshot) {
   // Get keys from URL
@@ -79,48 +113,70 @@ App.prototype.onHostButton = function(snapshot) {
     animal = util.randomPick(this.jsonData.animals);
   } while (currentAnimals.indexOf(animal) > 0);
 
-  var gameObj = this.database.push({
+  var frames = "";
+  for (var i = 0; i < 15; i++) {
+    frames += Math.floor(Math.random() * 9);
+  }
+
+  this.foundGame = this.database.push({
     round: 1,
     state: State.INIT,
-    animal: animal
+    animal: animal,
+    frames: frames,
+    numPlayers: 0
   });
-  window.location.hash = "/%g" + gameObj.key();
+  this.isHost = true;
 
-  var name = $('#name').val().toUpperCase();
-  var gender = this.jsonData.gender[name] || util.randomPick(["male", "female"]);
-
-  var playerObj = gameObj.child("players").push({
-    name: name,
-    isHost: true,
-    gender: gender
-  });
-  window.location.hash += "/%u" + playerObj.key();
-
-  this.game = new Game(this, gameObj, playerObj);
+  this.showNamePrompt();
 };
 
 App.prototype.onJoinButton = function(snapshot, watchOnly) {
-  var animalInput = $('#game').val();
-  var found = false;
   snapshot.forEach(game => {
-    if (game.val().animal === animalInput) {
-      found = true;
-      var gameKey = game.key();
-      var gameObj = snapshot.child(gameKey).ref();
-      window.location.hash = "/%g" + gameKey;
-
-      var name = $('#name').val().toUpperCase();
-      var gender = this.jsonData.gender[name] || util.randomPick(["male", "female"]);
-
-      var playerObj = gameObj.child("players").push({
-        name: name,
-        isHost: false,
-        gender: gender
-      });
-      window.location.hash += "/%u" + playerObj.key();
-
-      this.game = new Game(this, gameObj, playerObj);
+    if (game.val().animal === this.selectedGame) {
+      this.foundGame = snapshot.child(game.key()).ref();
+      console.warn(this.foundGame);
+      if (watchOnly !== true) {
+        this.showNamePrompt();
+      }
+      else {
+        console.warn('watchonly', watchOnly);
+        window.location.hash = "/%g" + this.foundGame.key();
+        this.game = new Game(this, this.foundGame, null);
+      }
     }
+  });
+};
+
+App.prototype.showNamePrompt = function() {
+  $('#join_container').hide();
+  $('#host_container').hide();
+  $('#name_container').show();
+};
+
+App.prototype.onClickColor = function(event) {
+  $('.color').removeClass('selected');
+  $(event.currentTarget).addClass('selected');
+};
+
+App.prototype.onSubmitNameButton = function() {
+  var name = $('#name').val();
+
+  this.foundGame.child('numPlayers').transaction(currNumPlayers => {
+    return currNumPlayers + 1;
+  }, (err, committed, snapshot) => {
+    if (!committed) {
+      return;
+    }
+    var playerObj = this.foundGame.child("players").push({
+      name: name,
+      isHost: this.isHost,
+      score: 0,
+      added: Date.now(),
+      color: $('.color.selected').css('background-color'),
+      rank: snapshot.val()
+    });
+    window.location.hash = "/%g" + this.foundGame.key() + "/%u" + playerObj.key();
+    this.game = new Game(this, this.foundGame, playerObj);
   });
 };
 

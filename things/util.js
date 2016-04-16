@@ -15,6 +15,17 @@ exports.randomPick = function(array) {
   return array[Math.floor(Math.random()*array.length)];
 };
 
+// Returns an array of unique random elements of an array.
+exports.randomPicks = function(array, n) {
+  array = array.slice(); // Clone array so as not to mutate it.
+  var picks = [];
+  for (var i = 0; i < array.length && i < n; i++) {
+    var index = Math.floor(Math.random()*array.length);
+    picks.push(array.splice(index, 1)[0]);
+  }
+  return picks;
+};
+
 // Inserts item into array at a random location.
 // Returns the array for convenience.
 exports.randomInsert = function(array, item) {
@@ -22,9 +33,9 @@ exports.randomInsert = function(array, item) {
   array.splice(spliceIndex, 0, item);
 };
 
-// Object forEach, calls callback with (val, key)
-exports.forEach = function(obj, callback) {
-  Object.keys(obj).forEach(key => callback(obj[key], key));
+// Object forEach, calls func with (val, key)
+exports.forEach = function(obj, func) {
+  Object.keys(obj).forEach(key => func(obj[key], key));
 };
 
 exports.size = function(obj) {
@@ -37,11 +48,15 @@ exports.values = function(obj) {
   });
 };
 
-exports.find = function(arr, callback) {
+exports.find = function(arr, cond) {
   for (var i = 0; i < arr.length; i++) {
-    if (callback(arr[i])) {
+    if (cond(arr[i])) {
       return arr[i];
     }
   }
   return undefined;
+};
+
+exports.contains = function(arr, item) {
+  return arr.indexOf(item) !== -1;
 };

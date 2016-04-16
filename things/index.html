@@ -5,17 +5,41 @@
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
 	<script type="text/javascript" src="static/bundle.js"></script>
 	<meta name="viewport" content='width=400'>
+	<link rel="stylesheet" href="node_modules/basiccontext/dist/basicContext.min.css">
+	<link rel="stylesheet" href="node_modules/basiccontext/dist/themes/default.min.css">
+	<link rel="stylesheet" href="node_modules/font-awesome/css/font-awesome.min.css">
 	<link rel="stylesheet" type="text/css" href="index.css">
+	<link rel="stylesheet" type="text/css" href="Game.css">
 	<link rel="stylesheet" type="text/css" href="Players.css">
+	<link rel="stylesheet" type="text/css" href="Responses.css">
 	<link rel="stylesheet" type="text/css" href="Poll.css">
 	</head>
 	<body>
-		<div id="join_container">
-			<div>Name: <input id="name" type="text" maxlength="8"></div>
-			<div>Game: <input id="game" type="text"></div>
-			<button id="join" type="button">Join</button>
-			<button id="watch" type="button">Watch</button>
-			<button id="host" type="button">Host</button>
+		<div id="login_page">
+			<div id="join_container" class="login_flex_item">
+	    	<div id="active_games">
+	    		<div id="no_games">No games</div>
+	    	</div>
+	    	<div class="button_group">
+					<button id="join" class="big_button" type="button">Join</button>
+					<button id="watch" class="big_button" type="button">Watch</button>
+				</div>
+			</div>
+			<div id="host_container" class="login_flex_item">
+				<div class="button_group">
+					<button id="host" class="big_button" type="button">Host</button>
+				</div>
+			</div>
+			<div id="name_container">
+				<div id="color_picker">
+					<div id="blue" class="color selected"></div>
+					<div id="red" class="color"></div>
+					<div id="green" class="color"></div>
+					<div id="orange" class="color"></div>
+				</div>
+				<input id="name" placeholder="Name" type="text" maxlength="12">
+				<button id="submit_name">Ready</button>
+			</div>
 		</div>
 	</body>
 </html>
