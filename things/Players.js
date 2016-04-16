@@ -1,5 +1,6 @@
 
 var basicContext = require('basiccontext');
+var State = require('./State.js');
 var util = require('./util.js');
 var NUM_FRAMES = 15; // number of different frames before repeats
 
@@ -16,6 +17,7 @@ function Players(game) {
   );
   util.bindFunc(this.gameObj.child('players'),
     this.onPlayersUpdate.bind(this));
+  util.bindFunc(this.game.playerObj.child('asleep'), this.sleepAlert.bind(this));
   // Note: removing a player does not trigger a 'players' value update
   this.gameObj.child('players').on('child_removed', playerObj => {
     var player = playerObj.val();
@@ -30,12 +32,14 @@ function Players(game) {
       window.location.reload(); // Force reload
     }
   });
-
-  // this.shh();
 }
 
-Players.prototype.count = function() {
-  return util.size(this.playersInfo);
+Players.prototype.awakeCount = function() {
+  var count = 0;
+  util.forEach(this.playersInfo, player => {
+    count = count + (player.asleep ? 0 : 1);
+  });
+  return count;
 };
 
 // Writes new player order to database, only host should do this
@@ -83,14 +87,21 @@ Players.prototype.updatePlayerDom = function(player, key) {
       var cls = classList.filter(cls => cls.slice(0, 6) === 'frame_')[0];
       return parseInt(cls[cls.length - 1], 10);
     });
-    ranks = ranks.filter(rank => rank < player.rank);
+    ranks = ranks.filter(rank => rank <= player.rank);
     if (ranks.length === 0) {
       console.warn('appending to players');
       $('#players').prepend(this.buildPlayerDom(player, key));
     }
     else {
       var prev = Math.max.apply(null, ranks);
-      $('.frame_' + prev).after(this.buildPlayerDom(player, key));
+      if (prev === player.rank) {
+        // If frame already exists, replace it
+        $('.frame_' + prev).replaceWith(this.buildPlayerDom(player, key));
+      }
+      else {
+        // If frame is less, add after it
+        $('.frame_' + prev).after(this.buildPlayerDom(player, key));
+      }
     }
     if (this.game.isHost) {
       this.preparePlayerMenu(player, key);
@@ -108,17 +119,8 @@ Players.prototype.updatePlayerDom = function(player, key) {
   else {
     // Player in client
     console.warn('UPDATING PLAYA DOM');
-    this.setZs(player);
-    // var speechDir = util.randomPick(["left", "right"]);
-    // if (player.vote && player.vote !== clientPlayer.vote) {
-    //   var bubble = playerDom.find(".speech_bubble_" + speechDir);
-    //   bubble.show();
-    //   bubble.find('.speech').html(player.vote.toUpperCase());
-    // }
-    // else if (!player.vote) {
-    //   this.shh();
-    // }
-    // TODO: Update other properties
+    // Set sleeping or awake
+    $('.frame_' + player.rank + ' .body').css('opacity', player.asleep ? 0.2 : 1.0);
   }
 };
 
@@ -148,6 +150,10 @@ Players.prototype.movePlayerDom = function(player, start, end) {
         'opacity': '1.0',
         'transition-duration': duration
       });
+      // If the moving player is hosting, show the cog
+      // if (this.game.isHost && !player.isHost) {
+      //   $('.frame_' + end + ' .player_menu').show();
+      // }
     }, (dist * 250) + 500);
   };
 
@@ -158,6 +164,10 @@ Players.prototype.movePlayerDom = function(player, start, end) {
     'opacity': '0.0',
     'transition-duration': duration
   });
+  // If the moving player is hosting, also hide cog
+  // if (this.game.isHost) {
+  //   $('.frame_' + start + ' .player_menu').hide();
+  // }
   startBody.one('animationend', () => {
     startBody.hide();
     startBody.removeClass('right_out left_in left_out right_in');
@@ -186,14 +196,10 @@ Players.prototype.buildPlayerDom = function(player, key) {
   var frame = allFrames[Math.floor(value % 3)];
 
   return "<div class='frame frame_" + player.rank + "'>" +
-    (this.game.isHost && !isUser ? "<div class='player_menu fa fa-cog'></div>" : "") +
+    "<div class='player_menu fa fa-cog' style='display:" +
+      (this.game.isHost ? 'block' : 'none') + ";'></div>" +
     "<div class='frame_content " + frame + "'>" +
-      "<div class='zzz' style='display:" + (player.asleep ? "block" : "none") + ";'>" +
-        "<div class='z z1'>z</div>" +
-        "<div class='z z2'>z</div>" +
-        "<div class='z z3'>z</div>" +
-      "</div>" +
-      "<div class='body'>" +
+      "<div class='body' style='opacity:" + (player.asleep ? "0.2" : "1.0") + ";'>" +
         "<div class='head' style='background-color:" + player.color + ";'></div>" +
         "<div class='torso' style='background-color:" + player.color + ";'></div>" +
       "</div>" +
@@ -221,15 +227,43 @@ Players.prototype.preparePlayerMenu = function(player, key) {
   menu.off('click');
   menu.on('click', event => {
     var items = [{
+        title: 'Give point',
+        icon: 'fa fa-plus',
+        fn: () => this.adjustScore(key, 1)
+      }, {
+        title: 'Take point',
+        icon: 'fa fa-minus',
+        fn: () => this.adjustScore(key, -1)
+      }, {
+      }, {
+        title: 'Mark response guessed',
+        icon: 'fa fa-quote-left',
+        visible: !player.isHost && this.game.state === State.GUESS,
+        disabled: player.guessed,
+        fn: () => this.game.onGuessed(key)
+      }, {
         title: 'Sit out this round',
         icon: 'fa fa-bed',
+        visible: !player.isHost,
         fn: () => this.gameObj.child('players').child(key).child('asleep').set(true)
       }, {
         title: 'Remove player',
         icon: 'fa fa-ban',
+        visible: !player.isHost,
         fn: () => this.game.removeFromGame(key)
     }];
     basicContext.show(items, event.originalEvent);
+  });
+};
+
+// Adjusts a players score by amt
+Players.prototype.adjustScore = function(key, amt) {
+  this.gameObj.child('players').child(key).child('score')
+  .transaction(currScore => {
+      return currScore + amt;
+  }, (err, committed, snapshot) => {
+    if (!committed) return;
+    this.setRanks();
   });
 };
 
@@ -245,18 +279,15 @@ Players.prototype.buildPlaque = function(name) {
   "</div>";
 };
 
-Players.prototype.setZs = function(player) {
-  var zzz = $('.frame_' + player.rank + ' .zzz');
-  if (player.asleep) {
-    zzz.show();
-  }
-  else {
-    zzz.hide();
+Players.prototype.sleepAlert = function(sleeping) {
+  console.warn('sleeping', sleeping);
+  if (sleeping) {
+    util.alert({
+      text: "You're on break",
+      buttonText: "Back to the game",
+      buttonFunc: () => this.game.playerObj.child('asleep').set(null)
+    });
   }
 };
-
-// Players.prototype.shh = function() {
-//   $('.speech_bubble').hide();
-// };
 
 module.exports = Players;

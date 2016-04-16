@@ -87,7 +87,8 @@ Poll.prototype.onVotesUpdate = function(votesInfo) {
     });
   }
   // If everyone voted, pick question and change state to respond.
-  if (numVoters === this.game.players.count()) {
+  console.warn('awakeCount', numVoters, this.game.players.awakeCount());
+  if (numVoters === this.game.players.awakeCount()) {
     this.timer.stop();
   }
 };

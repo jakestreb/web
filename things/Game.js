@@ -23,8 +23,6 @@ function Game(app, gameObj, playerObj) {
   this.responses = null;
   this.poll = null;
 
-  this.ignoreInitialRead = true; // Allows program to ignore initial state read
-
   // Set the game and player names before building the dom
   gameObj.child("animal").once("value").then(snapshot => {
     this.gameName = snapshot.val();
@@ -54,7 +52,7 @@ Game.prototype.buildDom = function() {
     $('#header_name').html(this.playerName);
     $('#header_game').html(this.gameName);
     $('#submit').on('click', this.onSubmit.bind(this));
-    $('#guessed').on('click', this.onGuessed.bind(this));
+    $('#guessed').on('click', this.onGuessed.bind(this, this.playerObj.key()));
     $('#complete').on('click', this.onGuessingComplete.bind(this));
     $('#set_scores').on('click', this.onSetScores.bind(this));
     $('#next_round').on('click', this.onNextRound.bind(this));
@@ -92,58 +90,65 @@ Game.prototype.onStateChange = function(newState) {
   console.log('state => ' + newState);
   this.state = newState;
 
-  // Updates should only occur on transition
-  var skip = this.ignoreInitialRead;
-  this.ignoreInitialRead = false;
-  if (skip && newState !== State.INIT) {
-    return;
-  }
-
-  switch (newState) {
-    case State.INIT:
-      this.playerObj.update({
-        guessed: null,
-        responded: null,
-        vote: null
-      });
-      if (this.isHost) {
-        this.gameObj.update({
-          state: State.POLL,
-          poll: null,
-          responses: null,
-          question: null,
-          scoring: null
-        });
-      }
-      break;
-    case State.POLL:
-      if (this.isHost) {
-        this.poll.pickChoices();
-      }
-      break;
-    case State.RESPOND:
-      // Remove poll data once no longer relevant
-      this.playerObj.child('responded').set(false);
-      if (this.isHost) {
-        this.gameObj.child('poll').update({
-          allowVoting: false,
-          votes: null,
-          spinner: null,
-          timeout: null
-        });
-      }
-      break;
-    case State.GUESS:
-      this.playerObj.update({
-        responded: null,
-        guessed: false
-      });
-      break;
-    case State.SCORE:
-      break;
-    case State.RECAP:
-      break;
-  }
+  this.playerObj.child('state').once('value', snapshot => {
+    var playerState = snapshot.val();
+    if (playerState === newState && newState !== State.INIT) {
+      // It is always safe to run the INIT state
+      return;
+    }
+    var playerObjUpdate;
+    switch (newState) {
+      case State.INIT:
+        playerObjUpdate = {
+          guessed: null,
+          responded: null,
+          vote: null,
+        };
+        if (this.isHost) {
+          this.gameObj.update({
+            state: State.POLL,
+            poll: null,
+            responses: null,
+            question: null,
+            scoring: null
+          });
+        }
+        break;
+      case State.POLL:
+        if (this.isHost) {
+          this.poll.pickChoices();
+        }
+        break;
+      case State.RESPOND:
+        // Remove poll data once no longer relevant
+        playerObjUpdate = {
+          responded: false
+        };
+        if (this.isHost) {
+          this.gameObj.child('poll').update({
+            allowVoting: false,
+            votes: null,
+            spinner: null,
+            timeout: null
+          });
+        }
+        break;
+      case State.GUESS:
+        playerObjUpdate = {
+          responded: null,
+          guessed: false
+        };
+        break;
+      case State.SCORE:
+        break;
+      case State.RECAP:
+        break;
+    }
+    // Add player state update to whatever updates the state determined
+    playerObjUpdate = playerObjUpdate || {};
+    playerObjUpdate.state = newState;
+    this.playerObj.update(playerObjUpdate);
+  });
 };
 
 Game.prototype.onQuestionUpdate = function(choice) {
@@ -227,11 +232,11 @@ Game.prototype.onSubmit = function() {
   });
 };
 
-Game.prototype.onGuessed = function() {
-  this.playerObj.child('guessed').set(true);
+Game.prototype.onGuessed = function(playerKey) {
+  this.gameObj.child('players').child(playerKey).child('guessed').set(true);
   // Look into responsesInfo, find your response and eliminate it
   util.forEach(this.responses.responsesInfo, (val, key) => {
-    if (val.key === this.playerObj.key()) {
+    if (val.key === playerKey) {
       this.gameObj.child('responses').child(key).update({
         eliminated: true
       });

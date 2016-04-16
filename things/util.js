@@ -60,3 +60,22 @@ exports.find = function(arr, cond) {
 exports.contains = function(arr, item) {
   return arr.indexOf(item) !== -1;
 };
+
+// Options should have the following properties:
+// text - main text content
+// buttonText - button title
+// buttonFunc - button execute function
+exports.alert = function(options) {
+  console.warn('ALERT');
+  var dom = "<div class='alert'>" +
+    "<div class='alert_text'>" + options.text + "</div>" +
+    "<button class='alert_button' type='button'>" + options.buttonText + "</button>" +
+  "</div>";
+  $('#game_content').hide();
+  $('body').prepend(dom);
+  $('.alert_button').on('click', () => {
+    $('.alert').remove();
+    $('#game_content').show();
+    options.buttonFunc();
+  });
+};

@@ -35,7 +35,7 @@ Responses.prototype.onResponsesUpdate = function(responsesInfo) {
     }
   });
   // If everyone has responded, change to guess state
-  if (this.count() === this.game.players.count()) {
+  if (this.count() === this.game.players.awakeCount()) {
     this.game.gameObj.child('state').set(State.GUESS);
   }
   // If guess state, show responses
