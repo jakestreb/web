@@ -1,4 +1,5 @@
 
+var ko = require('./koFire.js');
 var basicContext = require('basiccontext');
 var Players = require('./Players.js');
 var Responses = require('./Responses.js');
@@ -16,8 +17,24 @@ function Game(app, gameObj, playerObj) {
   this.playerName = null;
   this.isHost = null;
 
-  this.state = State.INIT;
-  this.round = 1;
+  this.state = ko.fireObservable(this.gameObj.child('state'));
+  this.round = ko.fireObservable(this.gameObj.child('round'));
+
+  this.question = ko.fireObservable(this.gameObj.child('question'));
+
+  this.guessed = ko.fireObservable(this.playerObj.child('guessed'));
+  this.responded = ko.fireObservable(this.playerObj.child('responded'));
+
+  // Show prompt computeds
+  this.showGuessedButton = ko.computed(() => {
+    return !this.guessed() && this.state() === State.GUESS;
+  });
+  this.showCompleteButton = ko.computed(() => {
+    return this.state() === State.GUESS && this.isHost;
+  });
+  this.showSubmitPrompt = ko.computed(() => {
+    return !this.responded() && this.state() === State.RESPOND;
+  });
 
   this.players = null;
   this.responses = null;
@@ -35,13 +52,14 @@ function Game(app, gameObj, playerObj) {
     this.players = new Players(this);
     this.responses = new Responses(this);
     this.poll = new Poll(this);
-    util.bindVal(this.gameObj.child('round'), this.round);
-    util.bindFunc(this.gameObj.child('state'), this.onStateChange.bind(this));
-    util.bindFunc(this.gameObj.child('question'), this.onQuestionUpdate.bind(this));
-    util.bindFunc(this.playerObj.child('guessed'), this.onGuessedUpdate.bind(this));
-    util.bindFunc(this.playerObj.child('responded'), this.onRespondedUpdate.bind(this));
-    util.bindFunc(this.gameObj.child('scoring'), this.onScoringUpdate.bind(this));
+    // util.bindFunc(this.gameObj.child('scoring'), this.onScoringUpdate.bind(this));
+    ko.applyBindings(this, $('#game_content').get(0));
+    if (this.state() === State.INIT) {
+      this.onStateChange(State.INIT);
+    }
   });
+
+  this.state.subscribe(newState => this.onStateChange(newState));
 }
 
 Game.prototype.buildDom = function() {
@@ -49,6 +67,7 @@ Game.prototype.buildDom = function() {
   var loadBody = $.Deferred();
   $(document.body).load('game.html', () => loadBody.resolve());
   return loadBody.promise().then(() => {
+    // Apply knockout bindings to loaded content
     $('#header_name').html(this.playerName);
     $('#header_game').html(this.gameName);
     $('#submit').on('click', this.onSubmit.bind(this));
@@ -88,114 +107,60 @@ Game.prototype.prepareSettings = function() {
 
 Game.prototype.onStateChange = function(newState) {
   console.log('state => ' + newState);
-  this.state = newState;
 
-  this.playerObj.child('state').once('value', snapshot => {
-    var playerState = snapshot.val();
-    if (playerState === newState && newState !== State.INIT) {
-      // It is always safe to run the INIT state
-      return;
-    }
-    var playerObjUpdate;
-    switch (newState) {
-      case State.INIT:
-        playerObjUpdate = {
-          guessed: null,
-          responded: null,
-          vote: null,
-        };
-        if (this.isHost) {
-          this.gameObj.update({
-            state: State.POLL,
-            poll: null,
-            responses: null,
-            question: null,
-            scoring: null
-          });
-        }
-        break;
-      case State.POLL:
-        if (this.isHost) {
-          this.poll.pickChoices();
-        }
-        break;
-      case State.RESPOND:
-        // Remove poll data once no longer relevant
-        playerObjUpdate = {
-          responded: false
-        };
-        if (this.isHost) {
-          this.gameObj.child('poll').update({
-            allowVoting: false,
-            votes: null,
-            spinner: null,
-            timeout: null
-          });
-        }
-        break;
-      case State.GUESS:
-        playerObjUpdate = {
-          responded: null,
-          guessed: false
-        };
-        break;
-      case State.SCORE:
-        break;
-      case State.RECAP:
-        break;
-    }
-    // Add player state update to whatever updates the state determined
-    playerObjUpdate = playerObjUpdate || {};
-    playerObjUpdate.state = newState;
-    this.playerObj.update(playerObjUpdate);
-  });
-};
-
-Game.prototype.onQuestionUpdate = function(choice) {
-  if (choice) {
-    $('.choice_container').hide();
-    $('#' + choice).show();
-    $('#' + choice).addClass('winner');
-  }
-  else {
-    $('.choice_container').show();
-    $('.choice_container').removeClass('winner selected');
-  }
-};
-
-Game.prototype.onGuessedUpdate = function(guessed) {
-  if (this.isHost) {
-    if (guessed === false) {
-      $('#guessed_container').show();
-      $('#complete').show();
-      $('#guessed').show();
-    }
-    else if (guessed === true) {
-      $('#guessed').hide();
-    }
-    else {
-      $('#guessed_container').hide();
-    }
-  }
-  else if (guessed === false) {
-    $('#guessed_container').show();
-  } else {
-    $('#guessed_container').hide();
-  }
-};
-
-Game.prototype.onRespondedUpdate = function(responded) {
-  if (responded === false) {
-    $('#submit_container').show();
-  } else {
-    $('#submit_container').hide();
+  switch (newState) {
+    case State.INIT:
+      this.playerObj.update({
+        guessed: null,
+        responded: null,
+        vote: null,
+      });
+      if (this.isHost) {
+        this.gameObj.update({
+          state: State.POLL,
+          poll: null,
+          responses: null,
+          question: null,
+          scoring: null
+        });
+      }
+      break;
+    case State.POLL:
+      if (this.isHost) {
+        this.poll.pickChoices();
+      }
+      break;
+    case State.RESPOND:
+      // Remove poll data once no longer relevant
+      this.playerObj.update({
+        responded: false
+      });
+      if (this.isHost) {
+        this.gameObj.child('poll').update({
+          allowVoting: false,
+          votes: null,
+          spinner: null,
+          timeout: null
+        });
+      }
+      break;
+    case State.GUESS:
+      this.playerObj.update({
+        responded: null,
+        guessed: false
+      });
+      break;
+    case State.SCORE:
+      break;
+    case State.RECAP:
+      break;
   }
 };
 
 Game.prototype.onNextRound = function() {
   this.gameObj.update({
     state: State.INIT,
-    round: this.round + 1,
+    round: this.round() + 1,
   });
 };
 
@@ -226,20 +191,20 @@ Game.prototype.onSubmit = function() {
     return;
   }
   this.playerObj.child('responded').set(true);
-  this.gameObj.child('responses').push({
-    key: this.playerObj.key(),
-    response: input
+  var res = this.gameObj.child('responses').push({
+    playerKey: this.playerObj.key(),
+    response: input,
+    eliminated: false
   });
+  this.gameObj.child('responses').child(res.key()).setPriority(Math.random());
 };
 
 Game.prototype.onGuessed = function(playerKey) {
   this.gameObj.child('players').child(playerKey).child('guessed').set(true);
   // Look into responsesInfo, find your response and eliminate it
-  util.forEach(this.responses.responsesInfo, (val, key) => {
-    if (val.key === playerKey) {
-      this.gameObj.child('responses').child(key).update({
-        eliminated: true
-      });
+  this.responses.responses().forEach(response => {
+    if (response.playerKey === playerKey) {
+      this.gameObj.child('responses').child(response.key).child('eliminated').set(true);
     }
   });
 };
@@ -271,35 +236,35 @@ Game.prototype.onSetScores = function() {
 };
 
 // Host only
-Game.prototype.onScoringUpdate = function(scoring) {
-  if (scoring) {
-    $('#guessed_container').hide();
-    $('#scoring_container').show();
-    $('#set_scores').show();
-    $('#next_round').hide();
-    $('.score_adjuster').show();
-    $('.minus').off('click');
-    $('.plus').off('click');
-    $('.minus').click(event => {
-      var adj = $(event.target).siblings('.score_adjustment');
-      var newAdjVal = parseInt(adj.html(), 10) - 1;
-      adj.html(newAdjVal);
-    });
-    $('.plus').click(event => {
-      var adj = $(event.target).siblings('.score_adjustment');
-      var newAdjVal = parseInt(adj.html(), 10) + 1;
-      adj.html(newAdjVal);
-    });
-  }
-  else if (scoring === false) {
-    $('#scoring_container').show();
-    $('#set_scores').hide();
-    $('#next_round').show();
-    $('.score_adjuster').hide();
-  }
-  else {
-    $('#scoring_container').hide();
-  }
-};
+// Game.prototype.onScoringUpdate = function(scoring) {
+//   if (scoring) {
+//     $('#guessed_container').hide();
+//     $('#scoring_container').show();
+//     $('#set_scores').show();
+//     $('#next_round').hide();
+//     $('.score_adjuster').show();
+//     $('.minus').off('click');
+//     $('.plus').off('click');
+//     $('.minus').click(event => {
+//       var adj = $(event.target).siblings('.score_adjustment');
+//       var newAdjVal = parseInt(adj.html(), 10) - 1;
+//       adj.html(newAdjVal);
+//     });
+//     $('.plus').click(event => {
+//       var adj = $(event.target).siblings('.score_adjustment');
+//       var newAdjVal = parseInt(adj.html(), 10) + 1;
+//       adj.html(newAdjVal);
+//     });
+//   }
+//   else if (scoring === false) {
+//     $('#scoring_container').show();
+//     $('#set_scores').hide();
+//     $('#next_round').show();
+//     $('.score_adjuster').hide();
+//   }
+//   else {
+//     $('#scoring_container').hide();
+//   }
+// };
 
 module.exports = Game;

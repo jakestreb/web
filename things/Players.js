@@ -150,10 +150,6 @@ Players.prototype.movePlayerDom = function(player, start, end) {
         'opacity': '1.0',
         'transition-duration': duration
       });
-      // If the moving player is hosting, show the cog
-      // if (this.game.isHost && !player.isHost) {
-      //   $('.frame_' + end + ' .player_menu').show();
-      // }
     }, (dist * 250) + 500);
   };
 
@@ -164,10 +160,6 @@ Players.prototype.movePlayerDom = function(player, start, end) {
     'opacity': '0.0',
     'transition-duration': duration
   });
-  // If the moving player is hosting, also hide cog
-  // if (this.game.isHost) {
-  //   $('.frame_' + start + ' .player_menu').hide();
-  // }
   startBody.one('animationend', () => {
     startBody.hide();
     startBody.removeClass('right_out left_in left_out right_in');

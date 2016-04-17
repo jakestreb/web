@@ -1,4 +1,5 @@
 
+var ko = require('./koFire.js');
 var State = require('./State.js');
 var util = require('./util.js');
 
@@ -16,70 +17,36 @@ function Poll(game) {
   this.votesInfo = null;
   this.timeout = null;
 
-  this.count = { a: 0, b: 0, c: 0 };
+  this.choices = ko.fireArray(this.pollObj.child('choices'));
+  this.allowVoting = ko.fireObservable(this.pollObj.child('allowVoting'));
+  this.votes = ko.fireArray(this.pollObj.child('votes'));
 
-  util.bindFunc(this.pollObj.child('choices'), this.onChoicesUpdate.bind(this));
-  util.bindFunc(this.pollObj.child('allowVoting'), this.onAllowVotingUpdate.bind(this));
-  util.bindFunc(this.pollObj.child('votes'), this.onVotesUpdate.bind(this));
   util.bindFunc(this.pollObj.child('timeout'), this.onTimeoutChange.bind(this));
   util.bindFunc(this.pollObj.child('spinner'), this.onSpinnerUpdate.bind(this));
+
+  this.votes.subscribe(this.onVotesUpdate.bind(this));
 }
 
-Poll.prototype.onAllowVotingUpdate = function(allowVoting) {
-  if (allowVoting) {
-    $("#a").on('click', this.onVote.bind(this, 'a'));
-    $("#b").on('click', this.onVote.bind(this, 'b'));
-    $("#c").on('click', this.onVote.bind(this, 'c'));
-    this.timer.show();
-  }
-  else {
-    $(".choice_container").off('click');
-    this.timer.hide();
-  }
-};
-
 Poll.prototype.pickChoices = function() {
+  console.warn('picking choices');
   var allQuestions = this.game.app.jsonData.questions;
   var picks = util.randomPicks(allQuestions, 3);
-  this.game.gameObj.update({
-    responses: null,
-    poll: {
-      allowVoting: true,
-      choices: {
-        a: picks[0],
-        b: picks[1],
-        c: picks[2]
-      },
-      timeout: 'ready'
-    }
-  });
-};
-
-Poll.prototype.onChoicesUpdate = function(choicesInfo) {
-  this.choicesInfo = choicesInfo || {};
-  util.forEach(this.choicesInfo, (choice, letter) => $('#choice_' + letter).html(choice));
-  // If no choices, remove dom
-  if (util.size(this.choicesInfo) === 0) {
-    $('.choice').each((i, match) => {
-      match.innerHTML = "";
+  var labels = ['A', 'B', 'C'];
+  for (var i = 0; i < 3; i++) {
+    this.pollObj.child('choices').push({
+      label: labels[i], text: picks[i]
     });
   }
-  this.hasVoted = false;
+  this.pollObj.update({
+    allowVoting: true,
+    timeout: 'ready'
+  });
+  this.timer.reset();
 };
 
-Poll.prototype.onVotesUpdate = function(votesInfo) {
-  // Build all markers to indicate voters
-  // TODO: Currently builds all from scratch on any change
-  this.votesInfo = votesInfo || {};
-  this.count = { a: 0, b: 0, c: 0 };
-  util.forEach(this.votesInfo, voteData => this.count[voteData.vote]++);
+Poll.prototype.onVotesUpdate = function(votes) {
+  var numVoters = votes.length;
 
-  var numVoters = util.size(this.votesInfo);
-
-  // If no one has voted (initial state), clear vote counts
-  if (numVoters === 0) {
-    $('.voters').each((i, match) => match.innerHTML = "");
-  }
   // If someone voted, and it isn't already set, set the timeout.
   if (numVoters > 0) {
     this.pollObj.child('timeout').transaction(currTimeout => {
@@ -87,7 +54,6 @@ Poll.prototype.onVotesUpdate = function(votesInfo) {
     });
   }
   // If everyone voted, pick question and change state to respond.
-  console.warn('awakeCount', numVoters, this.game.players.awakeCount());
   if (numVoters === this.game.players.awakeCount()) {
     this.timer.stop();
   }
@@ -105,25 +71,25 @@ Poll.prototype.onTimeoutChange = function(timeout) {
 };
 
 Poll.prototype.onVote = function(choice) {
-  var personalVote = util.find(Object.keys(this.votesInfo), voteKey => {
-    return this.votesInfo[voteKey].playerKey === this.game.playerObj.key();
+  var alreadyVoted = util.find(this.votes(), vote => {
+    return vote.playerKey === this.game.playerObj.key();
   });
-  if (personalVote) {
-    return;
-  }
+  if (alreadyVoted) return;
   this.pollObj.child('votes').push({
     name: this.game.playerName,
     playerKey: this.game.playerObj.key(),
-    vote: choice
+    vote: choice.label
   });
-  this.game.playerObj.child('vote').set(choice);
+  this.game.playerObj.child('vote').set(choice.label);
 };
 
 // Only called by host
 Poll.prototype.pickWinner = function() {
-  var maxVotes = Math.max.apply(null, util.values(this.count));
-  var finalists = Object.keys(this.count).filter(choice => {
-    return this.count[choice] === maxVotes;
+  var count = { A: 0, B: 0, C: 0 };
+  this.votes().forEach(voteData => count[voteData.vote]++);
+  var maxVotes = Math.max.apply(null, util.values(count));
+  var finalists = Object.keys(count).filter(choice => {
+    return count[choice] === maxVotes;
   });
   if (finalists.length > 1) {
     this.pollObj.child('spinner').update({
@@ -149,9 +115,15 @@ Poll.prototype.onSpinnerUpdate = function(spinObj) {
 
 // Only called by host
 Poll.prototype.submitWinner = function(winner) {
+  // Remove all choices except winner
+  var removalKeys = [];
+  this.choices().forEach(choice => {
+    if (choice.label !== winner) removalKeys.push(choice.key);
+  });
+  removalKeys.forEach(key => this.pollObj.child('choices').child(key).remove());
   this.game.gameObj.update({
     question: winner,
-    state: State.RESPOND,
+    state: State.RESPOND
   });
 };
 
@@ -161,6 +133,12 @@ function Timer() {
   this.isRunning = false;
   this.stopCallback = () => {};
 }
+
+Timer.prototype.reset = function() {
+  $('.slice').show();
+  $('.slice').css('transform', 'rotate(0deg)');
+  $('.mask_slice').hide();
+};
 
 Timer.prototype.start = function(timeout, stopCallback) {
   if (this.isRunning) {
@@ -201,18 +179,6 @@ Timer.prototype.stop = function() {
   this.isRunning = false;
   this.stopCallback();
 };
-
-Timer.prototype.show = function() {
-  $('.timer').show();
-  $('.slice').css('transform', 'rotate(0deg)');
-  $('.slice').show();
-  $('.mask_slice').hide();
-};
-
-Timer.prototype.hide = function() {
-  $('.timer').hide();
-};
-
 
 // A random selection spinner
 function Spinner() {

@@ -17,12 +17,13 @@
 	<body>
 		<div id="login_page">
 			<div id="join_container" class="login_flex_item">
-	    	<div id="active_games">
-	    		<div id="no_games">No games</div>
+	    	<div id="active_games" data-bind="foreach: activeGames">
+	    		<div class='active_game' data-bind="text: animal,
+	    			click: $parent.selectGame.bind($parent)"></div>
 	    	</div>
 	    	<div class="button_group">
-					<button id="join" class="big_button" type="button">Join</button>
-					<button id="watch" class="big_button" type="button">Watch</button>
+					<button id="join" class="big_button" data-bind="enable: selectedGame">Join</button>
+					<button id="watch" class="big_button" data-bind="enable: selectedGame">Watch</button>
 				</div>
 			</div>
 			<div id="host_container" class="login_flex_item">

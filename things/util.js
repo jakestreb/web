@@ -57,6 +57,15 @@ exports.find = function(arr, cond) {
   return undefined;
 };
 
+exports.findIndex = function(arr, cond) {
+  for (var i = 0; i < arr.length; i++) {
+    if (cond(arr[i])) {
+      return i;
+    }
+  }
+  return -1;
+};
+
 exports.contains = function(arr, item) {
   return arr.indexOf(item) !== -1;
 };

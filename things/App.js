@@ -1,4 +1,5 @@
 
+var ko = require('./koFire.js');
 var Game = require('./Game.js');
 var util = require('./util.js');
 
@@ -6,8 +7,7 @@ var util = require('./util.js');
 function App() {
   this.database = new Firebase('https://thingswithbeth.firebaseio.com/');
 
-  this.selectedName = null;
-  this.selectedGame = null;
+  this.selectedGame = ko.observable(null);
 
   this.foundGame = null;
   this.isHost = false;
@@ -19,43 +19,24 @@ function App() {
 
   this.jsonData = null;
 
+  this.activeGames = ko.fireArray(this.database);
+
   // Load JSON data
   _loadJSON(response => this.jsonData = JSON.parse(response));
 
-  this.database.once('value', snapshot => {
-    this.attemptURLConnect(snapshot);
-    this.buildStartPage(snapshot);
-  });
-}
+  this.database.once('value', snapshot => this.attemptURLConnect(snapshot));
 
-App.prototype.buildStartPage = function(snapshot) {
-  var first = true;
-  snapshot.forEach(game => {
-    var animal = game.val().animal;
-    if (first) {
-      $('#active_games').html(
-        "<div class='active_game selected'>" + game.val().animal + "</div>"
-      );
-      this.selectedGame = animal;
-    }
-    else {
-      $('#active_games').append(
-        "<div class='active_game'>" + game.val().animal + "</div>"
-      );
-    }
-    $('.active_game:last').on('click', event => {
-      this.selectedGame = animal;
-      $('.active_game').removeClass('selected');
-      $(event.target).addClass('selected');
-    });
-    first = false;
-  });
-
-  $('#join').on('click', this.onJoinButton.bind(this, snapshot));
-  $('#host').on('click', this.onHostButton.bind(this, snapshot));
-  $('#watch').on('click', this.onJoinButton.bind(this, snapshot, true));
+  $('#join').on('click', this.onJoinButton.bind(this));
+  $('#host').on('click', this.onHostButton.bind(this));
+  $('#watch').on('click', this.onJoinButton.bind(this, true));
   $('.color').on('click', this.onClickColor.bind(this));
   $('#submit_name').on('click', this.onSubmitNameButton.bind(this));
+}
+
+App.prototype.selectGame = function(game, event) {
+  this.selectedGame(game);
+  $('.active_game').removeClass('selected');
+  $(event.target).addClass('selected');
 };
 
 App.prototype.attemptURLConnect = function(snapshot) {
@@ -103,10 +84,10 @@ App.prototype.attemptURLConnect = function(snapshot) {
   this.game = new Game(this, gameObj, playerObj);
 };
 
-App.prototype.onHostButton = function(snapshot) {
+App.prototype.onHostButton = function() {
   var animal = "";
   var currentAnimals = [];
-  snapshot.forEach(game => currentAnimals.push(game.val().animal));
+  this.activeGames().forEach(game => currentAnimals.push(game.val().animal));
   // Keep trying to get an animal not currently in use
   // TODO: Inefficient, stalls forever if all animals in use
   do {
@@ -130,21 +111,17 @@ App.prototype.onHostButton = function(snapshot) {
   this.showNamePrompt();
 };
 
-App.prototype.onJoinButton = function(snapshot, watchOnly) {
-  snapshot.forEach(game => {
-    if (game.val().animal === this.selectedGame) {
-      this.foundGame = snapshot.child(game.key()).ref();
-      console.warn(this.foundGame);
-      if (watchOnly !== true) {
-        this.showNamePrompt();
-      }
-      else {
-        console.warn('watchonly', watchOnly);
-        window.location.hash = "/%g" + this.foundGame.key();
-        this.game = new Game(this, this.foundGame, null);
-      }
-    }
-  });
+App.prototype.onJoinButton = function(watchOnly) {
+  this.foundGame = this.database.child(this.selectedGame().key);
+  console.warn(this.foundGame);
+  if (watchOnly !== true) {
+    this.showNamePrompt();
+  }
+  else {
+    console.warn('watchonly', watchOnly);
+    window.location.hash = "/%g" + this.selectedGame().key;
+    this.game = new Game(this, this.foundGame, null);
+  }
 };
 
 App.prototype.showNamePrompt = function() {

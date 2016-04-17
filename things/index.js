@@ -1,5 +1,6 @@
 
 var App = require('./App.js');
+var ko = require('knockout');
 
 // TODO Features:
 
@@ -35,4 +36,7 @@ var App = require('./App.js');
 // - Add white backdrop blocks (?)
 // - Allow *eliminate players when guessed* setting
 
-$(function() { new App(); });
+$(function() {
+  window.app = new App();
+  ko.applyBindings(window.app);
+});

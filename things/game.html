@@ -6,29 +6,21 @@
       <div id="settings" class='fa fa-cog'></div>
     </div>
     <div id="questions" class="flexy">
-      <div class="timer">
+      <div class="timer" data-bind="visible: poll.allowVoting">
         <pie class="left_half"></pie>
         <pie class="slice"></pie>
         <pie class="mask_slice"></pie>
       </div>
-      <div id="a" class="choice_container">
-        <div class="choice_label">A</div>
-        <div id="choice_a" class="choice"></div>
-        <div id="votes_a" class="votes"></div>
-      </div>
-      <div id="b" class="choice_container">
-        <div class="choice_label">B</div>
-        <div id="choice_b" class="choice"></div>
-        <div id="votes_b" class="votes"></div>
-      </div>
-      <div id="c" class="choice_container">
-        <div class="choice_label">C</div>
-        <div id="choice_c" class="choice"></div>
-        <div id="votes_c" class="votes"></div>
+      <div id="choices" data-bind="foreach: poll.choices">
+        <div class="choice_container" data-bind="click: $parent.poll.onVote.bind($parent.poll)">
+          <div class="choice_label" data-bind="text: label"></div>
+          <div class="choice" data-bind="text: text"></div>
+          <div class="votes"></div>
+        </div>
       </div>
     </div>
     <div id="prompt_container">
-      <div id="submit_container">
+      <div id="submit_container" data-bind="visible: showSubmitPrompt">
         <div class="input_container">
           <input id="response" maxlength="120"></input>
           <div class="input_shadow"></div>
@@ -36,15 +28,21 @@
         <button id="submit" type="button">Submit</button>
       </div>
       <div id="guessed_container">
-        <button id="guessed" type="button">Response guessed</button>
-        <button id="complete" type="button">Round complete</button>
+        <button id="guessed" data-bind="visible: showGuessedButton">Response guessed</button>
+        <button id="complete" data-bind="visible: showCompleteButton">Round complete</button>
       </div>
       <div id="scoring_container">
-        <button id="set_scores" type="button">Set scores</button>
-        <button id="next_round" type="button">Next round</button>
+        <button id="set_scores" data-bind="visible: state() === State.SCORE">Set scores</button>
+        <button id="next_round" data-bind="visible: state() === State.RECAP">Next round</button>
       </div>
     </div>
-    <div id="responses" class="flexy"></div>
+    <div id="responses" class="flexy" data-bind="foreach: responses.responses, visible: state() === State.GUESS">
+      <div class='response'>
+        <div class='response_quotes'>
+          <div class='response_content' data-bind="text: response"></div>
+        </div>
+      </div>
+    </div>
     <div id="divider"></div>
     <div id="players" class="flexy"></div>
   </div>

@@ -51,14 +51,6 @@
   margin: 0 auto;
 }
 
-#scoring_container {
-  display: none;
-}
-
-#complete {
-  display: none;
-}
-
 #settings {
   float: right;
   margin: 12px;
