@@ -119,14 +119,15 @@ button:hover {
 	background-color: #415B87;
 	cursor: pointer;
 }
+button:disabled {
+	background-color: gray;
+	cursor: default;
+}
 
 .big_button {
 	height: 60px;
 	width: 120px;
 	font-size: 1.2rem;
-}
-.big_button:disabled {
-	background-color: gray;
 }
 
 .button_group {

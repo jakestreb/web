@@ -104,7 +104,8 @@ App.prototype.onHostButton = function() {
     state: State.INIT,
     animal: animal,
     frames: frames,
-    numPlayers: 0
+    numPlayers: 0,
+    numSleeping: 0
   });
   this.isHost = true;
 

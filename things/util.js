@@ -66,8 +66,22 @@ exports.findIndex = function(arr, cond) {
   return -1;
 };
 
+exports.findKey = function(obj, cond) {
+  for (var key in obj) {
+    if (cond(obj[key], key)) {
+      return key;
+    }
+  }
+  return undefined;
+};
+
 exports.contains = function(arr, item) {
   return arr.indexOf(item) !== -1;
+};
+
+// Evaluates an obsArray of observables
+exports.evaluate = function(obsArray) {
+  return obsArray().map(val => val());
 };
 
 // Options should have the following properties:

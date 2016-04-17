@@ -1,9 +1,9 @@
 <html>
   <div id="game_content">
     <div id="header">
-      <div id="header_name"></div>
-      <div id="header_game"></div>
-      <div id="settings" class='fa fa-cog'></div>
+      <div id="header_name" data-bind="text: playerName"></div>
+      <div id="header_game" data-bind="text: gameName"></div>
+      <div id="settings" class='settings_menu fa fa-cog' data-bind="click: (context, event) => onClickSettings(event)"></div>
     </div>
     <div id="questions" class="flexy">
       <div class="timer" data-bind="visible: poll.allowVoting">
@@ -22,28 +22,52 @@
     <div id="prompt_container">
       <div id="submit_container" data-bind="visible: showSubmitPrompt">
         <div class="input_container">
-          <input id="response" maxlength="120"></input>
+          <input id="response" maxlength="120" data-bind="enterKey: () => onSubmit()"></input>
           <div class="input_shadow"></div>
         </div>
-        <button id="submit" type="button">Submit</button>
+        <button id="submit" data-bind="click: () => onSubmit()">Submit</button>
       </div>
       <div id="guessed_container">
-        <button id="guessed" data-bind="visible: showGuessedButton">Response guessed</button>
-        <button id="complete" data-bind="visible: showCompleteButton">Round complete</button>
+        <button id="guessed" data-bind="visible: state() === State.GUESS, disable: guessed, click: () => onGuessed()">Response guessed</button>
+        <button id="complete" data-bind="visible: showCompleteButton, click: () => onGuessingComplete()">Round complete</button>
       </div>
       <div id="scoring_container">
-        <button id="set_scores" data-bind="visible: state() === State.SCORE">Set scores</button>
-        <button id="next_round" data-bind="visible: state() === State.RECAP">Next round</button>
+        <button id="set_scores" data-bind="visible: state() === State.SCORE, click: () => players.onSetScores()">Set scores</button>
+        <button id="next_round" data-bind="visible: state() === State.RECAP, click: () => onNextRound()">Next round</button>
       </div>
     </div>
     <div id="responses" class="flexy" data-bind="foreach: responses.responses, visible: state() === State.GUESS">
       <div class='response'>
         <div class='response_quotes'>
-          <div class='response_content' data-bind="text: response"></div>
+          <div class='response_content' data-bind="text: response, css: { eliminated: eliminated }"></div>
         </div>
       </div>
     </div>
     <div id="divider"></div>
-    <div id="players" class="flexy"></div>
+    <div id="players" class="flexy" data-bind="foreach: players.frames">
+      <div class='frame' data-bind="css: 'frame_' + rank">
+        <div class='player_menu fa fa-cog' data-bind='visible: $root.isHost, click: (frame, event) => $root.players.onClickPlayerMenu(frame, event)'></div>
+        <div class='frame_content' data-bind="css: type">
+          <div class='body' data-bind='style: { opacity: player().asleep ? "0.2" : "1.0" }, css: moving, visible: !empty()' >
+            <div class='head' data-bind='style: { backgroundColor: player().color }'></div>
+            <div class='torso' data-bind='style: { backgroundColor: player().color }'></div>
+          </div>
+        </div>
+        <div class='plaque'>
+          <div class='nametag'>
+            <div class='player_name' data-bind='text: player().name'></div>
+          </div>
+          <div class='banner_left_fold'></div>
+          <div class='banner_left_fringe'></div>
+          <div class='banner_right_fold'></div>
+          <div class='banner_right_fringe'></div>
+        </div>
+        <div class='score_adjuster' data-bind="visible: $parent.players.showAdjusters">
+          <div class='minus' data-bind="click: () => scoreAdjustment(scoreAdjustment() - 1)">-</div>
+          <div class='score_adjustment' data-bind='text: scoreAdjustment()'></div>
+          <div class='plus' data-bind="click: () => scoreAdjustment(scoreAdjustment() + 1)">+</div>
+        </div>
+      </div>
+    </div>
   </div>
 </html>

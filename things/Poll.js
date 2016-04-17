@@ -63,7 +63,7 @@ Poll.prototype.onTimeoutChange = function(timeout) {
   this.timeout = timeout;
   if (typeof timeout === 'number') {
     this.timer.start(timeout, () => {
-      if (this.game.isHost) {
+      if (this.game.isHost()) {
         this.pickWinner();
       }
     });
@@ -76,7 +76,7 @@ Poll.prototype.onVote = function(choice) {
   });
   if (alreadyVoted) return;
   this.pollObj.child('votes').push({
-    name: this.game.playerName,
+    name: this.game.playerName(),
     playerKey: this.game.playerObj.key(),
     vote: choice.label
   });
@@ -106,7 +106,7 @@ Poll.prototype.pickWinner = function() {
 Poll.prototype.onSpinnerUpdate = function(spinObj) {
   if (spinObj && spinObj.sequence) {
     this.spinner.start(spinObj.choices, spinObj.sequence, spinObj.startIndex, item => {
-      if (this.game.isHost) {
+      if (this.game.isHost()) {
         this.submitWinner(item);
       }
     });
