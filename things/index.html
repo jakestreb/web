@@ -32,14 +32,14 @@
 				</div>
 			</div>
 			<div id="name_container">
-				<div id="color_picker">
-					<div id="blue" class="color selected"></div>
-					<div id="red" class="color"></div>
-					<div id="green" class="color"></div>
-					<div id="orange" class="color"></div>
+				<div id="color_picker" data-bind="foreach: colors">
+					<div class="color" data-bind="style: { backgroundColor: $data }, click: () => $root.selectedColor($data), css: { selected: $root.selectedColor() === $data }"></div>
 				</div>
-				<input id="name" placeholder="Name" type="text" maxlength="12">
-				<button id="submit_name">Ready</button>
+				<div class="input_container">
+					<input id="name" placeholder="Name" maxlength="12" data-bind="enterKey: () => onSubmitNameButton()">
+          <div class="input_shadow"></div>
+        </div>
+				<button id="submit_name" data-bind="click: () => onSubmitNameButton()">Ready</button>
 			</div>
 		</div>
 	</body>

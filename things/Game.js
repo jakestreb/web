@@ -14,7 +14,13 @@ function Game(app, gameObj, playerObj) {
   this.playerObj = playerObj;
 
   this.gameName = ko.fireObservable(this.gameObj.child('animal'));
-  this.playerName = ko.fireObservable(this.playerObj.child('name'));
+  this.playerName = ko.fireObservable(this.playerObj.child('name'), name => {
+    if (name === null) {
+      // You've been removed
+      window.location.hash = "";
+      window.location.reload();
+    }
+  });
   this.isHost = ko.fireObservable(this.playerObj.child('isHost'));
 
   this.state = ko.fireObservable(this.gameObj.child('state'));
@@ -84,6 +90,7 @@ Game.prototype.onStateChange = function(newState) {
         guessed: null,
         responded: null,
         vote: null,
+        info: null
       });
       if (this.isHost()) {
         this.gameObj.update({
@@ -95,6 +102,9 @@ Game.prototype.onStateChange = function(newState) {
       }
       break;
     case State.POLL:
+      this.playerObj.update({
+        info: null
+      });
       if (this.isHost()) {
         this.poll.pickChoices();
       }
@@ -102,7 +112,8 @@ Game.prototype.onStateChange = function(newState) {
     case State.RESPOND:
       // Remove poll data once no longer relevant
       this.playerObj.update({
-        responded: false
+        responded: false,
+        info: null
       });
       if (this.isHost()) {
         this.gameObj.child('poll').update({
@@ -120,8 +131,12 @@ Game.prototype.onStateChange = function(newState) {
       });
       break;
     case State.SCORE:
+      this.playerObj.child('score').once('value', score => {
+        this.playerObj.child('info').set(score.val().toString());
+      });
       break;
     case State.RECAP:
+      this.playerObj.child('info').set(null);
       break;
   }
 };
@@ -140,16 +155,16 @@ Game.prototype.removeFromGame = function(playerKey) {
     if (!committed) {
       return;
     }
-    // Set the player's rank to 0, meaning they are to be removed
     this.gameObj.child('players').child(playerKey).remove();
-    var responsesInfo = this.responses.responsesInfo;
     // If the player has responsed, remove response
-    if (responsesInfo !== null) {
-      util.forEach(responsesInfo, (val, key) => {
-        if (val.key === playerKey) {
-          this.gameObj.child('responses').child(key).remove();
-        }
-      });
+    this.responses.responses().forEach(response => {
+      if (response.playerKey === playerKey) {
+        this.gameObj.child('responses').child(response.key).remove();
+      }
+    });
+    // If the player was asleep, decrement numSleeping
+    if (this.players.isAsleep()) {
+      this.gameObj.child('numSleeping').transaction(currNumSleeping => currNumSleeping - 1);
     }
   });
 };

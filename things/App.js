@@ -18,19 +18,23 @@ function App() {
   this.game = null;
 
   this.jsonData = null;
+  this.colors = ko.observableArray();
+  this.selectedColor = ko.observable("rgb(81, 107, 151)");
 
   this.activeGames = ko.fireArray(this.database);
 
   // Load JSON data
-  _loadJSON(response => this.jsonData = JSON.parse(response));
+  _loadJSON(response => {
+    this.jsonData = JSON.parse(response);
+    this.colors(this.jsonData.colors);
+  });
 
   this.database.once('value', snapshot => this.attemptURLConnect(snapshot));
 
+  // TODO: Use knockout
   $('#join').on('click', this.onJoinButton.bind(this));
   $('#host').on('click', this.onHostButton.bind(this));
   $('#watch').on('click', this.onJoinButton.bind(this, true));
-  $('.color').on('click', this.onClickColor.bind(this));
-  $('#submit_name').on('click', this.onSubmitNameButton.bind(this));
 }
 
 App.prototype.selectGame = function(game, event) {
@@ -87,7 +91,7 @@ App.prototype.attemptURLConnect = function(snapshot) {
 App.prototype.onHostButton = function() {
   var animal = "";
   var currentAnimals = [];
-  this.activeGames().forEach(game => currentAnimals.push(game.val().animal));
+  this.activeGames().forEach(game => currentAnimals.push(game.animal));
   // Keep trying to get an animal not currently in use
   // TODO: Inefficient, stalls forever if all animals in use
   do {
@@ -131,11 +135,6 @@ App.prototype.showNamePrompt = function() {
   $('#name_container').show();
 };
 
-App.prototype.onClickColor = function(event) {
-  $('.color').removeClass('selected');
-  $(event.currentTarget).addClass('selected');
-};
-
 App.prototype.onSubmitNameButton = function() {
   var name = $('#name').val();
 
@@ -150,7 +149,8 @@ App.prototype.onSubmitNameButton = function() {
       isHost: this.isHost,
       score: 0,
       added: Date.now(),
-      color: $('.color.selected').css('background-color'),
+      color: this.selectedColor(),
+      signPosition: util.randomPick(['left', 'right', 'center']),
       rank: snapshot.val()
     });
     window.location.hash = "/%g" + this.foundGame.key() + "/%u" + playerObj.key();

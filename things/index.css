@@ -64,30 +64,9 @@ body {
   text-align: center;
 }
 
-#name {
-	min-width: 200px;
-	max-width: 400px;
-	width: 40%;
-}
-
 #color_picker {
 	margin: 20px auto;
-}
-
-#blue {
-	background-color: #516B97;
-}
-
-#green {
-	background-color: #8CC454;
-}
-
-#red {
-	background-color: #C45454;
-}
-
-#orange {
-	background-color: #D6A242;
+	width: 200px;
 }
 
 .color {

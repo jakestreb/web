@@ -13,10 +13,6 @@ function Poll(game) {
 
   this.pollObj = this.game.gameObj.child('poll');
 
-  this.choicesInfo = null;
-  this.votesInfo = null;
-  this.timeout = null;
-
   this.choices = ko.fireArray(this.pollObj.child('choices'));
   this.allowVoting = ko.fireObservable(this.pollObj.child('allowVoting'));
   this.votes = ko.fireArray(this.pollObj.child('votes'));
@@ -60,7 +56,6 @@ Poll.prototype.onVotesUpdate = function(votes) {
 };
 
 Poll.prototype.onTimeoutChange = function(timeout) {
-  this.timeout = timeout;
   if (typeof timeout === 'number') {
     this.timer.start(timeout, () => {
       if (this.game.isHost()) {
@@ -80,7 +75,10 @@ Poll.prototype.onVote = function(choice) {
     playerKey: this.game.playerObj.key(),
     vote: choice.label
   });
-  this.game.playerObj.child('vote').set(choice.label);
+  this.game.playerObj.update({
+    vote: choice.label,
+    info: choice.label
+  });
 };
 
 // Only called by host

@@ -1,4 +1,10 @@
 {
+  "colors": [
+    "rgb(81, 107, 151)", "rgb(196, 84, 84)", "rgb(140, 196, 84)", "rgb(214, 162, 66)",
+    "rgb(22, 160, 133)", "rgb(41, 128, 185)", "rgb(103, 65, 114)", "rgb(226, 106, 106)",
+    "rgb(236, 100, 75)", "rgb(245, 215, 110)", "rgb(233, 212, 96)", "rgb(4, 147, 114)"
+  ],
+
   "animals": [
     "alligator", "alpaca", "ant", "antelope", "ape", "armadillo",
     "ass", "baboon", "badger", "bat", "bear", "beaver", "bee", "beetle",

@@ -7,6 +7,7 @@
     </div>
     <div id="questions" class="flexy">
       <div class="timer" data-bind="visible: poll.allowVoting">
+        <div class="timer_shadow"></div>
         <pie class="left_half"></pie>
         <pie class="slice"></pie>
         <pie class="mask_slice"></pie>
@@ -51,6 +52,9 @@
           <div class='body' data-bind='style: { opacity: player().asleep ? "0.2" : "1.0" }, css: moving, visible: !empty()' >
             <div class='head' data-bind='style: { backgroundColor: player().color }'></div>
             <div class='torso' data-bind='style: { backgroundColor: player().color }'></div>
+          </div>
+          <div class='sign' data-bind='css: player().signPosition, css: { lifted: player().info }'>
+            <div class='sign_content' data-bind='text: player().info'></div>
           </div>
         </div>
         <div class='plaque'>
