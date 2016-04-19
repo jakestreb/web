@@ -148,7 +148,7 @@ App.prototype.onSubmitNameButton = function() {
       name: name,
       isHost: this.isHost,
       score: 0,
-      added: Date.now(),
+      rankTime: Date.now(),
       color: this.selectedColor(),
       signPosition: util.randomPick(['left', 'right', 'center']),
       rank: snapshot.val()

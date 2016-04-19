@@ -32,7 +32,7 @@
         <button id="guessed" data-bind="visible: state() === State.GUESS, disable: guessed, click: () => onGuessed()">Response guessed</button>
         <button id="complete" data-bind="visible: showCompleteButton, click: () => onGuessingComplete()">Round complete</button>
       </div>
-      <div id="scoring_container">
+      <div id="scoring_container" data-bind="visible: isHost">
         <button id="set_scores" data-bind="visible: state() === State.SCORE, click: () => players.onSetScores()">Set scores</button>
         <button id="next_round" data-bind="visible: state() === State.RECAP, click: () => onNextRound()">Next round</button>
       </div>

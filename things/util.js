@@ -79,6 +79,17 @@ exports.contains = function(arr, item) {
   return arr.indexOf(item) !== -1;
 };
 
+// Counts the number of items in arr that meet cond
+exports.count = function(arr, cond) {
+  var count = 0;
+  for (var i = 0; i < arr.length; i++) {
+    if (cond(arr[i])) {
+      count++;
+    }
+  }
+  return count;
+};
+
 // Evaluates an obsArray of observables
 exports.evaluate = function(obsArray) {
   return obsArray().map(val => val());

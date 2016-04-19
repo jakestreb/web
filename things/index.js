@@ -10,26 +10,25 @@ var ko = require('knockout');
 // - Test with Safari and Firefox and Mobile
 
 // Bugs:
-// - Fix speech signs logic
-// - Fix walking animation
-// - Players can vote in respond round
+//
 
 // MEDIUM Priority - - - - - - - - - - -
 // - Get more questions and filter out bad ones
 // - Add more frame shapes (circle)
 // - Change colors
 // - Smooth transitions
-// - Remove game when host leaves (since game will stop running)
+// - Change header appearance
+// - Add host label to header
+// - Vertically center players on join, score, and recap states
 
 // Bugs:
-// - Handle sleeping players moving
+//
 
 // LOW Priority / Ideas - - - - - - - - -
 // - Games inactive more than 12hr are removed when looked up (add timestamp game actions)
 
-// - Make banners curved
-// - Add white backdrop blocks (?)
-// - Allow *eliminate players when guessed* setting
+// Bugs:
+// - Timer sometimes acts weird (new round?)
 
 $(function() {
   window.app = new App();

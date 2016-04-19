@@ -9,10 +9,14 @@ function Responses(game) {
 
   var responsesRef = this.game.gameObj.child('responses');
   this.responses = ko.fireArrayObservables(responsesRef, newVal => {
-    if (newVal.length === this.game.players.awakeCount()) {
-      this.game.gameObj.child('state').set(State.GUESS);
-    }
+    this.checkIfAllIn();
   });
 }
+
+Responses.prototype.checkIfAllIn = function() {
+  if (this.responses().length === this.game.players.awakeCount()) {
+    this.game.gameObj.child('state').set(State.GUESS);
+  }
+};
 
 module.exports = Responses;

@@ -69,7 +69,7 @@ Poll.prototype.onVote = function(choice) {
   var alreadyVoted = util.find(this.votes(), vote => {
     return vote.playerKey === this.game.playerObj.key();
   });
-  if (alreadyVoted) return;
+  if (alreadyVoted || this.game.state() !== State.POLL) return;
   this.pollObj.child('votes').push({
     name: this.game.playerName(),
     playerKey: this.game.playerObj.key(),

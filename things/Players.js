@@ -51,6 +51,16 @@ function Players(game) {
     }
   });
 
+  this.awakeCount = ko.computed(() => {
+    return this.numPlayers() - this.numSleeping();
+  });
+  // Re-check if responses are all in if awakeCount changes
+  this.awakeCount.subscribe(numAwake => {
+    if (this.game.state() === State.RESPOND) {
+      this.game.responses.checkIfAllIn();
+    }
+  });
+
   // Computed for showing score adjusters
   this.showAdjusters = ko.computed(() => {
     return this.game.state() === State.SCORE && this.game.isHost();
@@ -63,10 +73,6 @@ Players.prototype.buildFrameObj = function(player, rank) {
   return new Frame(rank, frameType, player);
 };
 
-Players.prototype.awakeCount = function() {
-  return this.numPlayers() - this.numSleeping();
-};
-
 // Writes new player order to database, only host should do this
 // Calls movePlayers when done
 // options.removeRank - if set, removes the player at the rank and the last frame
@@ -77,13 +83,16 @@ Players.prototype.setRanks = function(options) {
   playerOrder.sort((playerA, playerB) => {
     var aPts = playerA.score;
     var bPts = playerB.score;
-    return aPts !== bPts ? bPts - aPts : playerA.added - playerB.added;
+    return aPts !== bPts ? bPts - aPts : playerA.rankTime - playerB.rankTime;
   });
   playerOrder.forEach((player, index) => {
     if (index + 1 !== player.rank) {
       // Setting new rank in db
-      this.gameObj.child('players').child(player.key)
-        .child('rank').set(index + 1);
+      this.gameObj.child('players').child(player.key).update({
+        rank: index + 1,
+        rankTime: Date.now(),
+        info: null // Also nullify info, since players are about to move
+      });
     }
   });
   this._movePlayers(options);
@@ -91,48 +100,60 @@ Players.prototype.setRanks = function(options) {
 
 // See setRanks for documentation
 Players.prototype._movePlayers = function(options) {
-  console.warn('STARTING MOVE PLAYERS');
   options = options || {};
-  var currentPlayers = util.evaluate(this.players);
-  this.frames().forEach(frame => {
+  // Get all frames with players walking out
+  var activeFrames = this.frames().filter(frame => {
     var player = frame.player();
-    // console.warn('right place?', player.name, player.rank, frame.rank);
     if (player.rank !== frame.rank || player.rank === options.removeRank) {
-      // console.warn('Player must be moved');
-      // Player must be moved
-      frame.moving(player.rank < frame.rank ? 'left_out' : 'right_out');
-      var frameBody = $('.frame_' + frame.rank + ' .body');
-      frameBody.one('animationend', () => {
-        frame.empty(true);
-        frame.moving(undefined);
-        // console.warn('this.players()', this.players.peek()[0].peek(), this.players.peek()[1].peek());
+      return true;
+    }
+    else if (options.callback) {
+      // If the frame does not require movement, call callback
+      console.warn('CALLING CALLBACK IMMEDIATELY');
+      options.callback(frame);
+    }
+  });
+  var outCount = 0;
+  var getBody = frame => $('.frame_' + frame.rank + ' .body');
+  // Make all players walk out
+  activeFrames.forEach(frame => {
+    var player = frame.player();
+    frame.moving(player.rank < frame.rank ? 'left_out' : 'right_out');
+    getBody(frame).one('animationend', () => {
+      outCount++;
+      if (outCount === activeFrames.length) {
+        console.warn('ALL PLAYERS WALKED OUT');
         if (options.removeRank && frame.rank === this.frames().length) {
           // Remove the last frame
           $('.frame_' + frame.rank).remove();
           this.frames.pop();
         }
-        else {
-          var newPlayerIndex = util.findIndex(currentPlayers, player => player.rank === frame.rank);
-          // TODO: Updates received during movement are ignored
-          frame.player(currentPlayers[newPlayerIndex]);
-          setTimeout(() => {
-            frame.empty(false);
-            frame.moving(newPlayerIndex + 1 < frame.rank ? 'left_in' : 'right_in');
-            frameBody.one('animationend', () => {
-              frame.moving(undefined);
-              console.warn('DONE MOVING A PLAYER');
-              if (options.callback) {
-                options.callback(frame);
-              }
-            });
-          }, 500);
-        }
-      });
-    }
-    else {
-      options.callback(frame);
-    }
+        walkIn();
+      }
+    });
   });
+  // Called once all players have walked out
+  var walkIn = () => {
+    var currentPlayers = util.evaluate(this.players);
+    activeFrames.forEach(frame => {
+      frame.empty(true);
+      frame.moving(undefined);
+      var newPlayerIndex = util.findIndex(currentPlayers, player => player.rank === frame.rank);
+      // TODO: Updates received during movement are ignored
+      frame.player(currentPlayers[newPlayerIndex]);
+      setTimeout(() => {
+        frame.empty(false);
+        frame.moving(newPlayerIndex + 1 < frame.rank ? 'left_in' : 'right_in');
+        getBody(frame).one('animationend', () => {
+          frame.moving(undefined);
+          console.warn('DONE MOVING A PLAYER');
+          if (options.callback) {
+            options.callback(frame);
+          }
+        });
+      }, 500);
+    });
+  };
 };
 
 Players.prototype.onClickPlayerMenu = function(frame, event) {
@@ -157,7 +178,8 @@ Players.prototype.onClickPlayerMenu = function(frame, event) {
       title: 'Sit out this round',
       icon: 'fa fa-bed',
       visible: !isHost,
-      fn: () => this.gameObj.child('players').child(player.key).child('asleep').set(true)
+      disabled: player.asleep,
+      fn: () => this.setSleeping(player.key, true)
     }, {
       title: 'Remove player',
       icon: 'fa fa-ban',
@@ -165,6 +187,22 @@ Players.prototype.onClickPlayerMenu = function(frame, event) {
       fn: () => this.game.removeFromGame(player.key)
   }];
   basicContext.show(items, event.originalEvent);
+};
+
+// Sets the status of the player sleeping to bool
+Players.prototype.setSleeping = function(playerKey, bool) {
+  // Sets player to sleeping and increments numSleeping
+  var playerObj = this.gameObj.child('players').child(playerKey);
+  return playerObj.child('asleep').transaction(sleeping => {
+    return sleeping === bool ? undefined : bool;
+  }, (error, committed, snapshot) => {
+    if (!committed) {
+      return;
+    }
+    return this.gameObj.child('numSleeping').transaction(numSleeping => {
+      return numSleeping + (bool ? 1 : -1);
+    });
+  });
 };
 
 // Adjusts a players score by amt
@@ -182,7 +220,7 @@ Players.prototype.sleepAlert = function() {
   util.alert({
     text: "You're on break",
     buttonText: "Back to the game",
-    buttonFunc: () => this.game.playerObj.child('asleep').set(null)
+    buttonFunc: () => this.setSleeping(this.game.playerObj.key(), false)
   });
 };
 
@@ -193,15 +231,17 @@ Players.prototype.onSetScores = function() {
     var key = frame.player().key;
     var scoreRef = this.gameObj.child('players').child(key).child('score');
     scoreRef.once('value', snapshot => scoreRef.set(snapshot.val() + adj));
+    frame.scoreAdjustment(0); // Reset to 0 for next round
   });
   this.gameObj.child('state').set(State.RECAP);
   this.setRanks({
     callback: frame => {
       // After animation finishes, show updated scores
-      // var playerObj = this.gameObj.child('players').child(frame.player().key);
-      // playerObj.child('score').once(score => {
-      //   playerObj.child('info').set(score.val().toString());
-      // });
+      var playerObj = this.gameObj.child('players').child(frame.player().key);
+      playerObj.child('score').once('value', score => {
+        console.warn('SETTING INFO TO', score.val().toString());
+        playerObj.child('info').set(score.val().toString());
+      });
     }
   });
 };

@@ -72,7 +72,7 @@ Game.prototype.onClickSettings = function(event) {
     }, {
       title: 'Sit out this round',
       icon: 'fa fa-bed',
-      fn: () => this.playerObj.child('asleep').set(true)
+      fn: () => this.players.setSleeping(this.playerObj.key(), true)
     }, {
       title: 'Leave game',
       icon: 'fa fa-sign-out',
@@ -136,7 +136,6 @@ Game.prototype.onStateChange = function(newState) {
       });
       break;
     case State.RECAP:
-      this.playerObj.child('info').set(null);
       break;
   }
 };
@@ -149,38 +148,44 @@ Game.prototype.onNextRound = function() {
 };
 
 Game.prototype.removeFromGame = function(playerKey) {
-  this.gameObj.child('numPlayers').transaction(currNumPlayers => {
-    return currNumPlayers - 1;
-  }, (err, committed, snapshot) => {
-    if (!committed) {
-      return;
-    }
-    this.gameObj.child('players').child(playerKey).remove();
-    // If the player has responsed, remove response
-    this.responses.responses().forEach(response => {
-      if (response.playerKey === playerKey) {
-        this.gameObj.child('responses').child(response.key).remove();
-      }
+  if (playerKey === this.playerObj.key() && this.isHost()) {
+    // The host is leaving, game is over
+    this.app.database.child(this.gameObj.key()).set(null);
+  }
+  else {
+    // Wake the player up (in case they were asleep) for accounting and moving purposes
+    this.players.setSleeping(playerKey, false).then(() => {
+      // If the player has responsed, remove response
+      this.responses.responses().forEach(response => {
+        if (response.playerKey === playerKey) {
+          this.gameObj.child('responses').child(response.key).remove();
+        }
+      });
+      // Decrement numPlayers
+      return this.gameObj.child('numPlayers').transaction(currNumPlayers => {
+        return currNumPlayers - 1;
+      });
+    }).then(() => {
+      // Remove player entirely
+      // This will not execute until numPlayers transaction succeeds
+      this.gameObj.child('players').child(playerKey).remove();
     });
-    // If the player was asleep, decrement numSleeping
-    if (this.players.isAsleep()) {
-      this.gameObj.child('numSleeping').transaction(currNumSleeping => currNumSleeping - 1);
-    }
-  });
+  }
 };
 
 Game.prototype.onSubmit = function() {
-  var input = $("#response").val();
-  if (input === "") {
+  var input = $("#response");
+  if (input.val() === "") {
     return;
   }
   this.playerObj.child('responded').set(true);
   var res = this.gameObj.child('responses').push({
     playerKey: this.playerObj.key(),
-    response: input,
+    response: input.val(),
     eliminated: false
   });
   this.gameObj.child('responses').child(res.key()).setPriority(Math.random());
+  input.val("");
 };
 
 // If overridePlayerKey is not given, the current player is assumed
