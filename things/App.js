@@ -5,7 +5,7 @@ var util = require('./util.js');
 
 // Handles log in and creating a game
 function App() {
-  this.database = new Firebase('https://thingswithbeth.firebaseio.com/');
+  this.database = new Firebase('https://thingsgame.firebaseio.com/');
 
   this.selectedGame = ko.observable(null);
 

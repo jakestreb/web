@@ -6,7 +6,7 @@ var util = require('./util.js');
 
 // Handles log in and creating a game
 function App() {
-  this.database = new Firebase('https://thingswithbeth.firebaseio.com/');
+  this.database = new Firebase('https://thingsgame.firebaseio.com/');
 
   this.selectedGame = ko.observable(null);
 
@@ -974,9 +974,6 @@ module.exports = State;
 
 var App = require('./App.js');
 var ko = require('knockout');
-
-// - Removing a player throws an error and causes issues sometimes (DOM fix should be in watch.html too)
-// - removing player messes up num sleeping
 
 // - Test with Safari and Firefox and Mobile
 // - Get more questions and filter out bad ones
