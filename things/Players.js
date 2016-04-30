@@ -33,7 +33,6 @@ function Players(game) {
   this.frames = ko.observableArray();
 
   this.players = ko.fireArrayObservables(this.gameObj.child('players').orderByChild('rank'), players => {
-    console.warn('PLAYERS CHANGED');
     var numPlayers = players.length;
     var numFrames = this.frames().length;
     // Add frames
@@ -87,7 +86,7 @@ Players.prototype.buildFrameObj = function(player, rank) {
 };
 
 // Writes new player order to database, only host should do this
-Players.prototype.setRanks = function(optRemoveRank, optCallback) {
+Players.prototype.setRanks = function(optRemoveRank) {
   var playerOrder = util.evaluate(this.players);
   playerOrder.sort((playerA, playerB) => {
     var aPts = playerA.score;
@@ -110,7 +109,7 @@ Players.prototype.setRanks = function(optRemoveRank, optCallback) {
 };
 
 Players.prototype.movePlayers = function(optRemoveRank) {
-  var removeRank = optRemoveRank || false;
+  var removeRank = typeof optRemoveRank === "number" ? optRemoveRank : false;
   // Get all frames with players walking out
   var activeFrames = this.frames().filter(frame => {
     var player = frame.player();
@@ -128,10 +127,9 @@ Players.prototype.movePlayers = function(optRemoveRank) {
     getBody(frame).one('animationend', () => {
       outCount++;
       if (outCount === activeFrames.length) {
-        console.warn('ALL PLAYERS WALKED OUT');
-        if (removeRank && frame.rank === this.frames().length) {
+        if (removeRank) {
           // Remove the last frame
-          $('.frame_' + frame.rank).remove();
+          $('.frame_' + this.frames().length).remove();
           this.frames.pop();
         }
         walkIn();
@@ -152,7 +150,6 @@ Players.prototype.movePlayers = function(optRemoveRank) {
         frame.moving(newPlayerIndex + 1 < frame.rank ? 'left_in' : 'right_in');
         getBody(frame).one('animationend', () => {
           frame.moving(undefined);
-          console.warn('DONE MOVING A PLAYER');
           $('.frame_' + frame.rank + ' .sign').removeClass('unlifted');
         });
       }, 500);
@@ -200,12 +197,12 @@ Players.prototype.setSleeping = function(playerKey, bool) {
   return playerObj.child('asleep').transaction(sleeping => {
     return sleeping === bool ? undefined : bool;
   }, (error, committed, snapshot) => {
-    if (!committed) {
-      return;
+    if (committed) {
+      // Only update numSleeping if asleep value changed
+      return this.gameObj.child('numSleeping').transaction(numSleeping => {
+        return numSleeping + (bool ? 1 : -1);
+      });
     }
-    return this.gameObj.child('numSleeping').transaction(numSleeping => {
-      return numSleeping + (bool ? 1 : -1);
-    });
   });
 };
 
@@ -242,7 +239,6 @@ Players.prototype.onSetScores = function() {
   this.setRanks();
   // Show updated scores
   this.players().forEach(player => {
-    console.warn('playa', player(), player().key);
     var playerObj = this.gameObj.child('players').child(player().key);
     playerObj.child('score').once('value', score => {
       playerObj.child('info').set(score.val().toString());

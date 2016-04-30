@@ -137,7 +137,6 @@ App.prototype.onHostButton = function() {
 
 App.prototype.onJoinButton = function(watchOnly) {
   this.foundGame = this.database.child(this.selectedGame().key);
-  console.warn(this.foundGame);
   if (watchOnly !== true) {
     this.showNamePrompt();
   }
@@ -153,7 +152,7 @@ App.prototype.onJoinButton = function(watchOnly) {
       rank: 0
     });
     window.location.hash = "/%g" + this.foundGame.key() + "/%w" + fakePlayerObj.key();
-    this.game = new Game(this, this.foundGame, fakePlayerObj, 'watching');
+    this.game = new Game(this, this.foundGame, fakePlayerObj, true);
   }
 };
 
@@ -182,10 +181,11 @@ App.prototype.onSubmitNameButton = function() {
       rankTime: Date.now(),
       color: this.selectedColor(),
       signPosition: util.randomPick(['left', 'right', 'center']),
-      rank: snapshot.val()
+      rank: snapshot.val(),
+      asleep: false
     });
     window.location.hash = "/%g" + this.foundGame.key() + "/%u" + playerObj.key();
-    this.game = new Game(this, this.foundGame, playerObj, true);
+    this.game = new Game(this, this.foundGame, playerObj);
   });
 };
 
@@ -316,6 +316,7 @@ Game.prototype.onStateChange = function(newState) {
       }
       break;
     case State.POLL:
+      this.poll.timer.reset(); // Resets timer dom
       this.playerObj.update({
         info: null
       });
@@ -460,7 +461,6 @@ function Players(game) {
   this.frames = ko.observableArray();
 
   this.players = ko.fireArrayObservables(this.gameObj.child('players').orderByChild('rank'), players => {
-    console.warn('PLAYERS CHANGED');
     var numPlayers = players.length;
     var numFrames = this.frames().length;
     // Add frames
@@ -514,7 +514,7 @@ Players.prototype.buildFrameObj = function(player, rank) {
 };
 
 // Writes new player order to database, only host should do this
-Players.prototype.setRanks = function(optRemoveRank, optCallback) {
+Players.prototype.setRanks = function(optRemoveRank) {
   var playerOrder = util.evaluate(this.players);
   playerOrder.sort((playerA, playerB) => {
     var aPts = playerA.score;
@@ -537,7 +537,7 @@ Players.prototype.setRanks = function(optRemoveRank, optCallback) {
 };
 
 Players.prototype.movePlayers = function(optRemoveRank) {
-  var removeRank = optRemoveRank || false;
+  var removeRank = typeof optRemoveRank === "number" ? optRemoveRank : false;
   // Get all frames with players walking out
   var activeFrames = this.frames().filter(frame => {
     var player = frame.player();
@@ -555,10 +555,9 @@ Players.prototype.movePlayers = function(optRemoveRank) {
     getBody(frame).one('animationend', () => {
       outCount++;
       if (outCount === activeFrames.length) {
-        console.warn('ALL PLAYERS WALKED OUT');
-        if (removeRank && frame.rank === this.frames().length) {
+        if (removeRank) {
           // Remove the last frame
-          $('.frame_' + frame.rank).remove();
+          $('.frame_' + this.frames().length).remove();
           this.frames.pop();
         }
         walkIn();
@@ -579,7 +578,6 @@ Players.prototype.movePlayers = function(optRemoveRank) {
         frame.moving(newPlayerIndex + 1 < frame.rank ? 'left_in' : 'right_in');
         getBody(frame).one('animationend', () => {
           frame.moving(undefined);
-          console.warn('DONE MOVING A PLAYER');
           $('.frame_' + frame.rank + ' .sign').removeClass('unlifted');
         });
       }, 500);
@@ -627,12 +625,12 @@ Players.prototype.setSleeping = function(playerKey, bool) {
   return playerObj.child('asleep').transaction(sleeping => {
     return sleeping === bool ? undefined : bool;
   }, (error, committed, snapshot) => {
-    if (!committed) {
-      return;
+    if (committed) {
+      // Only update numSleeping if asleep value changed
+      return this.gameObj.child('numSleeping').transaction(numSleeping => {
+        return numSleeping + (bool ? 1 : -1);
+      });
     }
-    return this.gameObj.child('numSleeping').transaction(numSleeping => {
-      return numSleeping + (bool ? 1 : -1);
-    });
   });
 };
 
@@ -669,7 +667,6 @@ Players.prototype.onSetScores = function() {
   this.setRanks();
   // Show updated scores
   this.players().forEach(player => {
-    console.warn('playa', player(), player().key);
     var playerObj = this.gameObj.child('players').child(player().key);
     playerObj.child('score').once('value', score => {
       playerObj.child('info').set(score.val().toString());
@@ -724,7 +721,6 @@ function Poll(game) {
 }
 
 Poll.prototype.pickChoices = function() {
-  console.warn('picking choices');
   var allQuestions = this.game.app.jsonData.questions;
   var picks = util.randomPicks(allQuestions, 3);
   var labels = ['A', 'B', 'C'];
@@ -737,7 +733,6 @@ Poll.prototype.pickChoices = function() {
     allowVoting: true,
     timeout: 'ready'
   });
-  this.timer.reset();
 };
 
 Poll.prototype.onVotesUpdate = function(votes) {
@@ -980,6 +975,9 @@ module.exports = State;
 var App = require('./App.js');
 var ko = require('knockout');
 
+// - Removing a player throws an error and causes issues sometimes (DOM fix should be in watch.html too)
+// - removing player messes up num sleeping
+
 // - Test with Safari and Firefox and Mobile
 // - Get more questions and filter out bad ones
 
@@ -1052,7 +1050,6 @@ var util = require('./util.js');
     }
 
     firebaseRef.on('value', snapshot => {
-      console.warn('fire obs value change', snapshot.val());
       obs(snapshot.val());
     });
 
@@ -1098,14 +1095,9 @@ var util = require('./util.js');
     firebaseRef.on('child_changed', (childSnapshot, prevChildKey) => {
       var child = childSnapshot.val();
       child.key = childSnapshot.key();
-      // console.warn('child changed', child);
-      // console.warn('state of array playa', ka.peek()[0].peek().name, ka.peek()[1].peek().name);
-      // console.warn('state of array rank', ka.peek()[0].peek().rank, ka.peek()[1].peek().rank);
-      // console.warn('state of array key', ka.peek()[0].peek().key, ka.peek()[1].peek().key);
 
       var childIndex = util.findIndex(ka.peek(), item => item.peek().key === child.key);
       var childObs = ka.peek()[childIndex];
-      // console.warn('replacing child at', childIndex);
       childObs(child);
     });
 

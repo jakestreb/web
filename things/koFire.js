@@ -61,7 +61,6 @@ var util = require('./util.js');
     }
 
     firebaseRef.on('value', snapshot => {
-      console.warn('fire obs value change', snapshot.val());
       obs(snapshot.val());
     });
 
@@ -107,14 +106,9 @@ var util = require('./util.js');
     firebaseRef.on('child_changed', (childSnapshot, prevChildKey) => {
       var child = childSnapshot.val();
       child.key = childSnapshot.key();
-      // console.warn('child changed', child);
-      // console.warn('state of array playa', ka.peek()[0].peek().name, ka.peek()[1].peek().name);
-      // console.warn('state of array rank', ka.peek()[0].peek().rank, ka.peek()[1].peek().rank);
-      // console.warn('state of array key', ka.peek()[0].peek().key, ka.peek()[1].peek().key);
 
       var childIndex = util.findIndex(ka.peek(), item => item.peek().key === child.key);
       var childObs = ka.peek()[childIndex];
-      // console.warn('replacing child at', childIndex);
       childObs(child);
     });
 

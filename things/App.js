@@ -136,7 +136,6 @@ App.prototype.onHostButton = function() {
 
 App.prototype.onJoinButton = function(watchOnly) {
   this.foundGame = this.database.child(this.selectedGame().key);
-  console.warn(this.foundGame);
   if (watchOnly !== true) {
     this.showNamePrompt();
   }
@@ -152,7 +151,7 @@ App.prototype.onJoinButton = function(watchOnly) {
       rank: 0
     });
     window.location.hash = "/%g" + this.foundGame.key() + "/%w" + fakePlayerObj.key();
-    this.game = new Game(this, this.foundGame, fakePlayerObj, 'watching');
+    this.game = new Game(this, this.foundGame, fakePlayerObj, true);
   }
 };
 
@@ -181,10 +180,11 @@ App.prototype.onSubmitNameButton = function() {
       rankTime: Date.now(),
       color: this.selectedColor(),
       signPosition: util.randomPick(['left', 'right', 'center']),
-      rank: snapshot.val()
+      rank: snapshot.val(),
+      asleep: false
     });
     window.location.hash = "/%g" + this.foundGame.key() + "/%u" + playerObj.key();
-    this.game = new Game(this, this.foundGame, playerObj, true);
+    this.game = new Game(this, this.foundGame, playerObj);
   });
 };
 

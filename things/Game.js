@@ -107,6 +107,7 @@ Game.prototype.onStateChange = function(newState) {
       }
       break;
     case State.POLL:
+      this.poll.timer.reset(); // Resets timer dom
       this.playerObj.update({
         info: null
       });

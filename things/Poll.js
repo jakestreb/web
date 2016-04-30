@@ -33,7 +33,6 @@ function Poll(game) {
 }
 
 Poll.prototype.pickChoices = function() {
-  console.warn('picking choices');
   var allQuestions = this.game.app.jsonData.questions;
   var picks = util.randomPicks(allQuestions, 3);
   var labels = ['A', 'B', 'C'];
@@ -46,7 +45,6 @@ Poll.prototype.pickChoices = function() {
     allowVoting: true,
     timeout: 'ready'
   });
-  this.timer.reset();
 };
 
 Poll.prototype.onVotesUpdate = function(votes) {

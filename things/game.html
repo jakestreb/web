@@ -54,17 +54,17 @@
       <div class='frame' data-bind="css: 'frame_' + rank">
         <div class='player_menu fa fa-cog' data-bind='visible: $root.isHost, click: (frame, event) => $root.players.onClickPlayerMenu(frame, event)'></div>
         <div class='frame_content' data-bind="css: type">
-          <div class='body' data-bind='style: { opacity: player().asleep ? "0.2" : "1.0" }, css: moving, visible: !empty()' >
-            <div class='head' data-bind='style: { backgroundColor: player().color.color }'></div>
-            <div class='torso' data-bind='style: { backgroundColor: player().color.color }'></div>
+          <div class='body' data-bind='style: { opacity: player() ? (player().asleep ? "0.2" : "1.0") : "0.0" }, css: moving, visible: !empty()' >
+            <div class='head' data-bind='style: { backgroundColor: player() ? player().color.color : "white" }'></div>
+            <div class='torso' data-bind='style: { backgroundColor: player() ? player().color.color : "white" }'></div>
           </div>
-          <div class='sign' data-bind='css: player().signPosition, css: { lifted: player().info }'>
-            <div class='sign_content' data-bind='text: player().info'></div>
+          <div class='sign' data-bind='css: player() ? player().signPosition : "", css: { lifted: player() ? player().info : "" }'>
+            <div class='sign_content' data-bind='text: player() ? player().info : ""'></div>
           </div>
         </div>
         <div class='plaque'>
           <div class='nametag'>
-            <div class='player_name' data-bind='text: player().name'></div>
+            <div class='player_name' data-bind='text: player() ? player().name : ""'></div>
           </div>
           <div class='banner_left_fold'></div>
           <div class='banner_left_fringe'></div>
