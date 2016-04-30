@@ -1,8 +1,29 @@
 {
   "colors": [
-    "rgb(81, 107, 151)", "rgb(196, 84, 84)", "rgb(140, 196, 84)", "rgb(214, 162, 66)",
-    "rgb(22, 160, 133)", "rgb(41, 128, 185)", "rgb(103, 65, 114)", "rgb(226, 106, 106)",
-    "rgb(236, 100, 75)", "rgb(245, 215, 110)", "rgb(233, 212, 96)", "rgb(4, 147, 114)"
+    [
+        { "color": "#E74C3C", "alt": "#F76C5C" },
+        { "color": "#EC644B", "alt": "#FC846B" },
+        { "color": "#F08070", "alt": "#F0A090" },
+        { "color": "#F1A9A0", "alt": "#F1C9C0" }
+    ],
+    [
+        { "color": "#E87E04", "alt": "#F89E24" },
+        { "color": "#EB9532", "alt": "#FBB552" },
+        { "color": "#F4B350", "alt": "#F4D370" },
+        { "color": "#F5D76E", "alt": "#F5F78E" }
+    ],
+    [
+        { "color": "#019875", "alt": "#21B895" },
+        { "color": "#4DAF7C", "alt": "#6DCF9C" },
+        { "color": "#66CC99", "alt": "#86ECA9" },
+        { "color": "#90C695", "alt": "#A0E6B5" }
+    ],
+    [
+        { "color": "#54798E", "alt": "#7499AE" },
+        { "color": "#5594A4", "alt": "#75B4C4" },
+        { "color": "#6CA7CF", "alt": "#8CC7EF" },
+        { "color": "#89C4F4", "alt": "#A9E4F4" }
+    ]
   ],
 
   "animals": [
@@ -10,17 +31,17 @@
     "ass", "baboon", "badger", "bat", "bear", "beaver", "bee", "beetle",
     "buffalo", "butterfly", "camel", "caribou", "cat", "cheetah", "chimpanzee",
     "chinchilla", "cicada", "clam", "cockroach", "cow", "coyote", "crab", "cricket",
-    "crow", "deer", "dinosaur", "dog", "dolphin", "duck", "eel", "elephant", "elk",
+    "crow", "deer", "dingo", "dinosaur", "dog", "dolphin", "duck", "eel", "elephant", "elk",
     "ferret", "fish", "fly", "fox", "frog", "gerbil", "giraffe", "gnat", "goat",
     "goldfish", "gorilla", "grasshopper", "hamster", "hedgehog", "hippopotamus",
-    "hornet", "horse", "hyena", "jackal", "jellyfish", "kangaroo", "koala", "leopard",
+    "hornet", "horse", "hyena", "iguana", "jackal", "jellyfish", "kangaroo", "koala", "leopard",
     "lion", "lizard", "llama", "locust", "mallard", "mammoth", "manatee", "minnow",
-    "mole", "monkey", "moose", "mosquito", "mouse", "mule", "muskrat", "otter", "ox",
-    "oyster", "panda", "pig", "platypus", "porcupine", "pug", "rabbit", "raccoon",
-    "reindeer", "rhinoceros", "salmon", "sardine", "scorpion", "seal", "shark",
+    "mole", "monkey", "moose", "mosquito", "mouse", "mule", "muskrat", "orangutan", "otter", "ox",
+    "oyster", "panda", "penguin", "pig", "platypus", "porcupine", "pug", "rabbit", "raccoon",
+    "rattlesnake", "reindeer", "rhinoceros", "salmon", "sardine", "scorpion", "seal", "shark",
     "sheep", "skunk", "snail", "snake", "spider", "squirrel", "termite", "tiger",
     "trout", "turtle", "walrus", "wasp", "weasel", "whale", "wolf", "wombat",
-    "woodchuck", "worm", "yak", "yellow", "zebra"
+    "woodchuck", "worm", "yak", "zebra"
   ],
 
   "questions": [

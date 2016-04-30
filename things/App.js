@@ -14,19 +14,20 @@ function App() {
 
   this.urlGameKey = null;
   this.urlPlayerKey = null;
+  this.urlWatcherKey = null;
 
   this.game = null;
 
   this.jsonData = null;
   this.colors = ko.observableArray();
-  this.selectedColor = ko.observable("rgb(81, 107, 151)");
+  this.selectedColor = ko.observable({ "color": "#E74C3C", "alt": "#F76C5C" });
 
   this.activeGames = ko.fireArray(this.database);
 
   // Load JSON data
   _loadJSON(response => {
     this.jsonData = JSON.parse(response);
-    this.colors(this.jsonData.colors);
+    this.colors(this.jsonData.colors.map(swatch => ko.observableArray(swatch)));
   });
 
   this.database.once('value', snapshot => this.attemptURLConnect(snapshot));
@@ -54,6 +55,9 @@ App.prototype.attemptURLConnect = function(snapshot) {
       case "%u":
         this.urlPlayerKey = item.slice(2);
         break;
+      case "%w":
+        this.urlWatcherKey = item.slice(2);
+        break;
     }
   });
 
@@ -68,7 +72,7 @@ App.prototype.attemptURLConnect = function(snapshot) {
 
   // Retrieve game if in database, break if not
   if (!games || !(this.urlGameKey in games)) {
-    window.location.hash = ""; // Clears URL suffix
+    window.location.hash = ""; // Clear suffix
     console.error("Failed to retrieve game");
     return;
   }
@@ -76,27 +80,40 @@ App.prototype.attemptURLConnect = function(snapshot) {
   var gameObj = snapshot.child(this.urlGameKey).ref();
 
   var players = games[gameObj.key()].players;
+  var watchers = games[gameObj.key()].watchers;
   if (!this.urlPlayerKey || !players || !(this.urlPlayerKey in players)) {
-    window.location.hash = "/%g" + this.urlGameKey; // Clears player suffix
-    console.error("Failed to retrieve player");
-    this.game = new Game(this, gameObj);
-    return;
+    if (!this.urlWatcherKey || !watchers || !(this.urlWatcherKey in watchers)) {
+      window.location.hash = ""; // Clear suffix
+      console.error("Failed to retrieve player");
+      return;
+    }
+    else {
+      // Watcher available
+      var watcherObj = gameObj.child("watchers").child(this.urlWatcherKey);
+      this.game = new Game(this, gameObj, watcherObj, true);
+    }
   }
-  // Player available
-  var playerObj = gameObj.child("players").child(this.urlPlayerKey);
-
-  this.game = new Game(this, gameObj, playerObj);
+  else {
+    // Player available
+    var playerObj = gameObj.child("players").child(this.urlPlayerKey);
+    this.game = new Game(this, gameObj, playerObj);
+  }
 };
 
 App.prototype.onHostButton = function() {
-  var animal = "";
   var currentAnimals = [];
+  var animalsToTry = this.jsonData.animals.slice();
   this.activeGames().forEach(game => currentAnimals.push(game.animal));
+
   // Keep trying to get an animal not currently in use
-  // TODO: Inefficient, stalls forever if all animals in use
-  do {
-    animal = util.randomPick(this.jsonData.animals);
-  } while (currentAnimals.indexOf(animal) > 0);
+  var animalIndex = util.randomIndex(animalsToTry);
+  while (util.contains(currentAnimals, animalsToTry[animalIndex])) {
+    animalsToTry.splice(animalIndex, 1);
+    if (animalsToTry.length === 0) {
+      throw "Too many active games";
+    }
+    animalIndex = util.randomIndex(animalsToTry);
+  }
 
   var frames = "";
   for (var i = 0; i < 15; i++) {
@@ -105,11 +122,12 @@ App.prototype.onHostButton = function() {
 
   this.foundGame = this.database.push({
     round: 1,
-    state: State.INIT,
-    animal: animal,
+    state: State.JOIN,
+    animal: animalsToTry[animalIndex],
     frames: frames,
     numPlayers: 0,
-    numSleeping: 0
+    numSleeping: 0,
+    rankChange: false
   });
   this.isHost = true;
 
@@ -123,9 +141,18 @@ App.prototype.onJoinButton = function(watchOnly) {
     this.showNamePrompt();
   }
   else {
-    console.warn('watchonly', watchOnly);
-    window.location.hash = "/%g" + this.selectedGame().key;
-    this.game = new Game(this, this.foundGame, null);
+    // Create a player object with arbitrary information to avoid errors
+    var fakePlayerObj = this.foundGame.child("watchers").push({
+      name: 'Watching',
+      isHost: false,
+      score: 0,
+      rankTime: Date.now(),
+      color: "#E74C3C",
+      signPosition: 'center',
+      rank: 0
+    });
+    window.location.hash = "/%g" + this.foundGame.key() + "/%w" + fakePlayerObj.key();
+    this.game = new Game(this, this.foundGame, fakePlayerObj, 'watching');
   }
 };
 
@@ -137,6 +164,9 @@ App.prototype.showNamePrompt = function() {
 
 App.prototype.onSubmitNameButton = function() {
   var name = $('#name').val();
+  if (name === "") {
+    return;
+  }
 
   this.foundGame.child('numPlayers').transaction(currNumPlayers => {
     return currNumPlayers + 1;
@@ -154,7 +184,7 @@ App.prototype.onSubmitNameButton = function() {
       rank: snapshot.val()
     });
     window.location.hash = "/%g" + this.foundGame.key() + "/%u" + playerObj.key();
-    this.game = new Game(this, this.foundGame, playerObj);
+    this.game = new Game(this, this.foundGame, playerObj, true);
   });
 };
 

@@ -4,7 +4,6 @@
   flex-wrap: wrap;
   justify-content: space-around;
   align-items: center;
-  padding: 10px;
 }
 
 .player_menu {
@@ -135,13 +134,13 @@
   text-align: center;
   overflow: hidden;
   background: #FDFDFD;
+  border: 1px solid #BBB;
 }
 
 .frame_oval {
   width: 76px;
   height: 90px;
   border-radius: 38px / 45px;
-  border: 1px solid #BBB;
 }
 .frame_oval:after {
   width: 78px;
@@ -149,7 +148,7 @@
   left: -1px;
   top: 0;
   content: '';
-  box-shadow: inset 0 -3px 0 2px rgba(0, 0, 0, 0.15);
+  box-shadow: inset 0 -3px 0 2px rgba(0, 0, 0, 0.12);
   position: absolute;
   border-radius: 38px / 45px;
 }
@@ -157,7 +156,6 @@
 .frame_square {
   width: 80px;
   height: 80px;
-  border: 1px solid #BBB;
 }
 .frame_square:after {
   width: 82px;
@@ -165,7 +163,7 @@
   left: -1px;
   top: -4px;
   content: '';
-  box-shadow: inset 0 -5px 0 2px rgba(0, 0, 0, 0.15);
+  box-shadow: inset 0 -4px 0 2px rgba(0, 0, 0, 0.12);
   position: absolute;
   border-radius: 30px / 5px;
 }
@@ -173,7 +171,6 @@
 .frame_rect {
   width: 70px;
   height: 95px;
-  border: 1px solid #BBB;
 }
 .frame_rect:after {
   width: 72px;
@@ -181,7 +178,7 @@
   left: -1px;
   top: -4px;
   content: '';
-  box-shadow: inset 0 -5px 0 2px rgba(0, 0, 0, 0.15);
+  box-shadow: inset 0 -4px 0 2px rgba(0, 0, 0, 0.12);
   position: absolute;
   border-radius: 30px / 5px;
 }
@@ -201,7 +198,7 @@
   padding: 2px 5px;
   min-width: 50px;
   background-color: #DDD;
-  box-shadow: inset 0 0 0 1px #BBB;
+  box-shadow: inset 0 0 0 1px #CCC;
 }
 
 .sign {
@@ -217,6 +214,10 @@
 }
 .sign.lifted {
   bottom: -10px;
+}
+.sign.unlifted {
+  /* Hacky way of hiding/reverting signs during/after movement */
+  bottom: -40px !important;
 }
 .sign.center {
   left: 25px;

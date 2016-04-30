@@ -17,6 +17,15 @@ function Poll(game) {
   this.allowVoting = ko.fireObservable(this.pollObj.child('allowVoting'));
   this.votes = ko.fireArray(this.pollObj.child('votes'));
 
+  this.leftHalfGradient = ko.computed(() => {
+    return "linear-gradient(90deg, " + this.game.players.color().color +
+      " 50%, transparent 50%)";
+  });
+  this.sliceGradient = ko.computed(() => {
+    return "linear-gradient(90deg, transparent 50%, " + this.game.players.color().color +
+      " 50%)";
+  });
+
   util.bindFunc(this.pollObj.child('timeout'), this.onTimeoutChange.bind(this));
   util.bindFunc(this.pollObj.child('spinner'), this.onSpinnerUpdate.bind(this));
 
@@ -160,7 +169,7 @@ Timer.prototype.buildDom = function(timeout) {
     deg = (frac * 180);
     $('.slice').css('transform', 'rotate(' + deg + 'deg)');
   }
-  else if (timeLeft < half && timeLeft > 0) {
+  else if (timeLeft <= half && timeLeft > 0) {
     $('.slice').hide();
     $('.mask_slice').show();
     frac = 1 - (timeLeft / half);
@@ -202,7 +211,7 @@ Spinner.prototype.buildDom = function(choices, seq, startIndex) {
     if (now >= seq[i] && now < seq[i + 1]) {
       var pick = choices[(startIndex + i) % choices.length];
       $('.choice_container').removeClass('selected');
-      $('#' + pick).addClass('selected');
+      $('.' + pick).addClass('selected');
       return;
     }
   }
@@ -214,6 +223,7 @@ Spinner.prototype.buildDom = function(choices, seq, startIndex) {
 Spinner.prototype.stop = function(winner) {
   window.clearInterval(this.intervalId);
   this.isRunning = false;
+  $('.choice_container').removeClass('selected');
   this.stopCallback(winner);
 };
 

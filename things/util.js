@@ -15,6 +15,10 @@ exports.randomPick = function(array) {
   return array[Math.floor(Math.random()*array.length)];
 };
 
+exports.randomIndex = function(array) {
+  return Math.floor(Math.random() * array.length);
+};
+
 // Returns an array of unique random elements of an array.
 exports.randomPicks = function(array, n) {
   array = array.slice(); // Clone array so as not to mutate it.
@@ -99,11 +103,14 @@ exports.evaluate = function(obsArray) {
 // text - main text content
 // buttonText - button title
 // buttonFunc - button execute function
+// color - color object with color and alt color
 exports.alert = function(options) {
   console.warn('ALERT');
+  var color = options.color;
   var dom = "<div class='alert'>" +
     "<div class='alert_text'>" + options.text + "</div>" +
-    "<button class='alert_button' type='button'>" + options.buttonText + "</button>" +
+    "<button class='alert_button' style='background-color:" + color.alt +
+      ";border-color:" + color.color + ";'>" + options.buttonText + "</button>" +
   "</div>";
   $('#game_content').hide();
   $('body').prepend(dom);

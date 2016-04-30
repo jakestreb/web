@@ -1,11 +1,12 @@
 
 State = {
-  INIT: 1,
-  POLL: 2,
-  RESPOND: 3,
-  GUESS: 4,
-  SCORE: 5,
-  RECAP: 6
+  JOIN:     1,
+  INIT:     2,
+  POLL:     3,
+  RESPOND:  4,
+  GUESS:    5,
+  SCORE:    6,
+  RECAP:    7
 };
 
 module.exports = State;

@@ -9,12 +9,14 @@ function Responses(game) {
 
   var responsesRef = this.game.gameObj.child('responses');
   this.responses = ko.fireArrayObservables(responsesRef, newVal => {
-    this.checkIfAllIn();
+    this.checkIfAllIn(newVal);
   });
 }
 
-Responses.prototype.checkIfAllIn = function() {
-  if (this.responses().length === this.game.players.awakeCount()) {
+// If optResponses is given, use instead of reading observable again
+Responses.prototype.checkIfAllIn = function(optResponses) {
+  var responses = optResponses || this.responses();
+  if (responses.length === this.game.players.awakeCount()) {
     this.game.gameObj.child('state').set(State.GUESS);
   }
 };

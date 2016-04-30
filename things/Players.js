@@ -18,6 +18,11 @@ function Players(game) {
   this.numPlayers = ko.fireObservable(this.gameObj.child('numPlayers'));
   this.numSleeping = ko.fireObservable(this.gameObj.child('numSleeping'));
 
+  // Briefly set to true whenever a rank change occurs. Observable only useful for subscription.
+  this.rankChange = ko.fireObservable(this.gameObj.child('rankChange'));
+
+  this.color = ko.fireObservable(this.game.playerObj.child('color'));
+
   this.isAsleep = ko.fireObservable(this.game.playerObj.child('asleep'), sleeping => {
     if (sleeping) {
       this.sleepAlert();
@@ -44,7 +49,9 @@ function Players(game) {
       for (var r = 1; r <= numFrames; r++) {
         if (!util.find(players, p => p.peek().rank === r)) {
           // If there is no player with rank r, remove that player DOM
-          this.setRanks({ removeRank: r });
+          if (this.game.isHost()) {
+            this.setRanks(r); // Removes player ranked r
+          }
           numFrames--;
         }
       }
@@ -61,6 +68,12 @@ function Players(game) {
     }
   });
 
+  this.rankChange.subscribe(changed => {
+    if (changed) {
+      this.movePlayers(changed);
+    }
+  });
+
   // Computed for showing score adjusters
   this.showAdjusters = ko.computed(() => {
     return this.game.state() === State.SCORE && this.game.isHost();
@@ -74,11 +87,7 @@ Players.prototype.buildFrameObj = function(player, rank) {
 };
 
 // Writes new player order to database, only host should do this
-// Calls movePlayers when done
-// options.removeRank - if set, removes the player at the rank and the last frame
-// options.callback - if set, runs a callback on every animation end with the frame
-//  as the argument
-Players.prototype.setRanks = function(options) {
+Players.prototype.setRanks = function(optRemoveRank, optCallback) {
   var playerOrder = util.evaluate(this.players);
   playerOrder.sort((playerA, playerB) => {
     var aPts = playerA.score;
@@ -95,22 +104,19 @@ Players.prototype.setRanks = function(options) {
       });
     }
   });
-  this._movePlayers(options);
+  this.gameObj.child('rankChange').set(optRemoveRank || true).then(() => {
+    this.gameObj.child('rankChange').set(false);
+  });
 };
 
-// See setRanks for documentation
-Players.prototype._movePlayers = function(options) {
-  options = options || {};
+Players.prototype.movePlayers = function(optRemoveRank) {
+  var removeRank = optRemoveRank || false;
   // Get all frames with players walking out
   var activeFrames = this.frames().filter(frame => {
     var player = frame.player();
-    if (player.rank !== frame.rank || player.rank === options.removeRank) {
+    if (player.rank !== frame.rank || player.rank === removeRank) {
+      $('.frame_' + frame.rank + ' .sign').addClass('unlifted'); // Hide all signs while players are walking
       return true;
-    }
-    else if (options.callback) {
-      // If the frame does not require movement, call callback
-      console.warn('CALLING CALLBACK IMMEDIATELY');
-      options.callback(frame);
     }
   });
   var outCount = 0;
@@ -123,7 +129,7 @@ Players.prototype._movePlayers = function(options) {
       outCount++;
       if (outCount === activeFrames.length) {
         console.warn('ALL PLAYERS WALKED OUT');
-        if (options.removeRank && frame.rank === this.frames().length) {
+        if (removeRank && frame.rank === this.frames().length) {
           // Remove the last frame
           $('.frame_' + frame.rank).remove();
           this.frames.pop();
@@ -147,9 +153,7 @@ Players.prototype._movePlayers = function(options) {
         getBody(frame).one('animationend', () => {
           frame.moving(undefined);
           console.warn('DONE MOVING A PLAYER');
-          if (options.callback) {
-            options.callback(frame);
-          }
+          $('.frame_' + frame.rank + ' .sign').removeClass('unlifted');
         });
       }, 500);
     });
@@ -220,7 +224,8 @@ Players.prototype.sleepAlert = function() {
   util.alert({
     text: "You're on break",
     buttonText: "Back to the game",
-    buttonFunc: () => this.setSleeping(this.game.playerObj.key(), false)
+    buttonFunc: () => this.setSleeping(this.game.playerObj.key(), false),
+    color: this.color()
   });
 };
 
@@ -234,15 +239,14 @@ Players.prototype.onSetScores = function() {
     frame.scoreAdjustment(0); // Reset to 0 for next round
   });
   this.gameObj.child('state').set(State.RECAP);
-  this.setRanks({
-    callback: frame => {
-      // After animation finishes, show updated scores
-      var playerObj = this.gameObj.child('players').child(frame.player().key);
-      playerObj.child('score').once('value', score => {
-        console.warn('SETTING INFO TO', score.val().toString());
-        playerObj.child('info').set(score.val().toString());
-      });
-    }
+  this.setRanks();
+  // Show updated scores
+  this.players().forEach(player => {
+    console.warn('playa', player(), player().key);
+    var playerObj = this.gameObj.child('players').child(player().key);
+    playerObj.child('score').once('value', score => {
+      playerObj.child('info').set(score.val().toString());
+    });
   });
 };
 

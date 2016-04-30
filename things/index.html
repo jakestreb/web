@@ -8,7 +8,7 @@
 	<link rel="stylesheet" href="node_modules/basiccontext/dist/basicContext.min.css">
 	<link rel="stylesheet" href="node_modules/basiccontext/dist/themes/default.min.css">
 	<link rel="stylesheet" href="node_modules/font-awesome/css/font-awesome.min.css">
-	<link rel="stylesheet" type="text/css" href="index.css">
+	<link rel="stylesheet" type="text/css" href="App.css">
 	<link rel="stylesheet" type="text/css" href="Game.css">
 	<link rel="stylesheet" type="text/css" href="Players.css">
 	<link rel="stylesheet" type="text/css" href="Responses.css">
@@ -33,13 +33,20 @@
 			</div>
 			<div id="name_container">
 				<div id="color_picker" data-bind="foreach: colors">
-					<div class="color" data-bind="style: { backgroundColor: $data }, click: () => $root.selectedColor($data), css: { selected: $root.selectedColor() === $data }"></div>
+					<div class="color_swatch" data-bind="foreach: $data">
+						<div class="color_tile" data-bind="style: { backgroundColor: color }, click: () => $root.selectedColor($data), css: { selected: $root.selectedColor().color === color }">
+							<div class="color_check fa fa-check"></div>
+							<div class="color_label" data-bind="text: color, style: { color: alt }"></div>
+						</div>
+					</div>
 				</div>
-				<div class="input_container">
+				<div class="input_container name">
 					<input id="name" placeholder="Name" maxlength="12" data-bind="enterKey: () => onSubmitNameButton()">
           <div class="input_shadow"></div>
         </div>
-				<button id="submit_name" data-bind="click: () => onSubmitNameButton()">Ready</button>
+				<button id="submit_name" data-bind="click: () => onSubmitNameButton(), style: { backgroundColor: selectedColor().alt, borderColor: selectedColor().color }">
+					<span class="fa fa-arrow-right"></span>
+				</button>
 			</div>
 		</div>
 	</body>

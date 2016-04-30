@@ -65,42 +65,91 @@ body {
 }
 
 #color_picker {
-	margin: 20px auto;
-	width: 200px;
+	width: 350px;
+	margin: 40px auto;
 }
 
-.color {
+.color_swatch {
 	display: inline-block;
-	width: 20px;
-	height: 20px;
-	border-radius: 10px;
-	margin: 10px;
-	border: 3px solid #F6F6F6;
+	position: relative;
+	height: 76px;
+	background-color: white;
+  border: 1px solid #DDD;
+  border-bottom: 2px solid #DDD;
+  margin: 10px 0 0 0;
+  border-radius: 2px;
 }
 
-.color.selected {
-	border: 3px solid #DDD;
+.color_tile {
+	position: relative;
+	display: inline-block;
+	float: left;
+	width: 12vw;
+	height: 70px;
+	min-width: 50px;
+	max-width: 70px;
+	margin: 3px 0 3px 3px;
+}
+.color_tile:first-child {
+	border-top-left-radius: 1px;
+	border-bottom-left-radius: 1px;
+}
+.color_tile:last-child {
+	margin-right: 40px;
+}
+.color_tile:hover {
+	cursor: pointer;
+}
+
+.color_label {
+	position: absolute;
+  right: -13px;
+  top: 20px;
+  transform: rotate(-90deg);
+  color: #718BB7;
+  font-size: 0.5rem;
+}
+
+.color_tile.selected > .color_check {
+	display: block;
+
+}
+.color_check {
+	position: absolute;
+	display: none;
+	top: 35%;
+	left: 35%;
+	color: white;
 }
 
 button {
-	line-height: 36px;
+	line-height: 33px;
 	vertical-align: bottom;
 	border: none;
+	min-width: 40px;
 	padding: 0 5px;
 	background-color: #516B97;
 	color: white;
 	font-size: 0.9rem;
 	font-weight: 300;
 	outline: none;
-	border-radius: 2px;
+	border: 1px solid #555;
+	border-bottom: 2px solid #555;
+	border-radius: 3px;
 }
 button:hover {
-	background-color: #415B87;
+	background-color: #617BA7;
 	cursor: pointer;
+}
+button:active{
+	border: none;
 }
 button:disabled {
 	background-color: gray;
 	cursor: default;
+	border: 1px solid #444;
+	border-bottom: 2px solid #444;
+	border-radius: 3px;
 }
 
 .big_button {
@@ -119,13 +168,17 @@ button:disabled {
 	width: 60%;
 	height: 36px;
 }
+.input_container.name {
+	width: 40%;
+	max-width: 250px;
+}
 .input_shadow {
 	position: absolute;
 	left: 0;
 	bottom: -3px;
 	width: 100%;
 	height: 42px;
-	box-shadow: inset 0 -4px 0 2px rgba(0, 0, 0, 0.10);
+	box-shadow: inset 0 -3px 0 2px rgba(0, 0, 0, 0.08);
 	border-radius: 30px / 5px;
 	pointer-events: none
 }
@@ -143,11 +196,11 @@ input {
 	width: 100%;
   height: 36px;
 	outline: none;
-	padding: 2px;
+	padding: 2px 4px;
 	vertical-align: bottom;
-	font-size: 1.2rem;
+	font-size: 1.1rem;
 	font-weight: 300;
 	background-color: white;
-	border: 1px solid #DDD;
+	border: 1px solid #CCC;
+	border-radius: 3px;
 }
-
