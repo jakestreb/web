@@ -571,6 +571,9 @@ Players.prototype.movePlayers = function(optRemoveRank) {
       frame.empty(true);
       frame.moving(undefined);
       var newPlayerIndex = util.findIndex(currentPlayers, player => player.rank === frame.rank);
+      if (newPlayerIndex === -1) {
+        return;
+      }
       // TODO: Updates received during movement are ignored
       frame.player(currentPlayers[newPlayerIndex]);
       setTimeout(() => {
@@ -7094,7 +7097,7 @@ exports.count = function(arr, cond) {
 
 // Evaluates an obsArray of observables
 exports.evaluate = function(obsArray) {
-  return obsArray().map(val => val());
+  return obsArray.peek().map(val => val.peek());
 };
 
 // Options should have the following properties:

@@ -96,7 +96,7 @@ exports.count = function(arr, cond) {
 
 // Evaluates an obsArray of observables
 exports.evaluate = function(obsArray) {
-  return obsArray().map(val => val());
+  return obsArray.peek().map(val => val());
 };
 
 // Options should have the following properties:
