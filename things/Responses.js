@@ -5,11 +5,12 @@ var util = require('./util.js');
 
 // Handles creation and crossing out of the list of responses
 function Responses(game) {
+  var self = this;
   this.game = game;
 
   var responsesRef = this.game.gameObj.child('responses');
-  this.responses = ko.fireArrayObservables(responsesRef, newVal => {
-    this.checkIfAllIn(newVal);
+  this.responses = ko.fireArrayObservables(responsesRef, function(newVal) {
+    self.checkIfAllIn(newVal);
   });
 }
 

@@ -7,6 +7,7 @@ var DURATION = 3000;
 
 // Handles creation of the list of questions and the poll process
 function Poll(game) {
+  var self = this;
   this.game = game;
   this.timer = new Timer();
   this.spinner = new Spinner();
@@ -17,12 +18,12 @@ function Poll(game) {
   this.allowVoting = ko.fireObservable(this.pollObj.child('allowVoting'));
   this.votes = ko.fireArray(this.pollObj.child('votes'));
 
-  this.leftHalfGradient = ko.computed(() => {
-    return "linear-gradient(90deg, " + this.game.players.color().color +
+  this.leftHalfGradient = ko.computed(function() {
+    return "linear-gradient(90deg, " + self.game.players.color().color +
       " 50%, transparent 50%)";
   });
-  this.sliceGradient = ko.computed(() => {
-    return "linear-gradient(90deg, transparent 50%, " + this.game.players.color().color +
+  this.sliceGradient = ko.computed(function() {
+    return "linear-gradient(90deg, transparent 50%, " + self.game.players.color().color +
       " 50%)";
   });
 
@@ -52,7 +53,7 @@ Poll.prototype.onVotesUpdate = function(votes) {
 
   // If someone voted, and it isn't already set, set the timeout.
   if (numVoters > 0) {
-    this.pollObj.child('timeout').transaction(currTimeout => {
+    this.pollObj.child('timeout').transaction(function(currTimeout) {
       return currTimeout === 'ready' ? Date.now() + DURATION : undefined;
     });
   }
@@ -63,18 +64,20 @@ Poll.prototype.onVotesUpdate = function(votes) {
 };
 
 Poll.prototype.onTimeoutChange = function(timeout) {
+  var self = this;
   if (typeof timeout === 'number') {
-    this.timer.start(timeout, () => {
-      if (this.game.isHost()) {
-        this.pickWinner();
+    this.timer.start(timeout, function() {
+      if (self.game.isHost()) {
+        self.pickWinner();
       }
     });
   }
 };
 
 Poll.prototype.onVote = function(choice) {
-  var alreadyVoted = util.find(this.votes(), vote => {
-    return vote.playerKey === this.game.playerObj.key();
+  var self = this;
+  var alreadyVoted = util.find(this.votes(), function(vote) {
+    return vote.playerKey === self.game.playerObj.key();
   });
   if (alreadyVoted || this.game.state() !== State.POLL) return;
   this.pollObj.child('votes').push({
@@ -91,9 +94,9 @@ Poll.prototype.onVote = function(choice) {
 // Only called by host
 Poll.prototype.pickWinner = function() {
   var count = { A: 0, B: 0, C: 0 };
-  this.votes().forEach(voteData => count[voteData.vote]++);
+  this.votes().forEach(function(voteData) { return count[voteData.vote]++; });
   var maxVotes = Math.max.apply(null, util.values(count));
-  var finalists = Object.keys(count).filter(choice => {
+  var finalists = Object.keys(count).filter(function(choice) {
     return count[choice] === maxVotes;
   });
   if (finalists.length > 1) {
@@ -109,10 +112,11 @@ Poll.prototype.pickWinner = function() {
 };
 
 Poll.prototype.onSpinnerUpdate = function(spinObj) {
+  var self = this;
   if (spinObj && spinObj.sequence) {
-    this.spinner.start(spinObj.choices, spinObj.sequence, spinObj.startIndex, item => {
-      if (this.game.isHost()) {
-        this.submitWinner(item);
+    this.spinner.start(spinObj.choices, spinObj.sequence, spinObj.startIndex, function(item) {
+      if (self.game.isHost()) {
+        self.submitWinner(item);
       }
     });
   }
@@ -120,12 +124,13 @@ Poll.prototype.onSpinnerUpdate = function(spinObj) {
 
 // Only called by host
 Poll.prototype.submitWinner = function(winner) {
+  var self = this;
   // Remove all choices except winner
   var removalKeys = [];
-  this.choices().forEach(choice => {
+  this.choices().forEach(function(choice) {
     if (choice.label !== winner) removalKeys.push(choice.key);
   });
-  removalKeys.forEach(key => this.pollObj.child('choices').child(key).remove());
+  removalKeys.forEach(function(key) { return self.pollObj.child('choices').child(key).remove(); });
   this.game.gameObj.update({
     question: winner,
     state: State.RESPOND
@@ -136,7 +141,7 @@ Poll.prototype.submitWinner = function(winner) {
 function Timer() {
   this.intervalId = null;
   this.isRunning = false;
-  this.stopCallback = () => {};
+  this.stopCallback = function() {};
 }
 
 Timer.prototype.reset = function() {
@@ -189,7 +194,7 @@ Timer.prototype.stop = function() {
 function Spinner() {
   this.intervalId = null;
   this.isRunning = false;
-  this.stopCallback = () => {};
+  this.stopCallback = function() {};
 }
 
 Spinner.prototype.start = function(choices, seq, startIndex, stopCallback) {

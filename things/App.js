@@ -5,6 +5,7 @@ var util = require('./util.js');
 
 // Handles log in and creating a game
 function App() {
+  var self = this;
   this.database = new Firebase('https://thingsgame.firebaseio.com/');
 
   this.selectedGame = ko.observable(null);
@@ -25,12 +26,12 @@ function App() {
   this.activeGames = ko.fireArray(this.database);
 
   // Load JSON data
-  _loadJSON(response => {
-    this.jsonData = JSON.parse(response);
-    this.colors(this.jsonData.colors.map(swatch => ko.observableArray(swatch)));
+  _loadJSON(function(response) {
+    self.jsonData = JSON.parse(response);
+    self.colors(self.jsonData.colors.map(function(swatch) { return ko.observableArray(swatch); }));
   });
 
-  this.database.once('value', snapshot => this.attemptURLConnect(snapshot));
+  this.database.once('value', function(snapshot) { return self.attemptURLConnect(snapshot); });
 
   // TODO: Use knockout
   $('#join').on('click', this.onJoinButton.bind(this));
@@ -45,18 +46,19 @@ App.prototype.selectGame = function(game, event) {
 };
 
 App.prototype.attemptURLConnect = function(snapshot) {
+  var self = this;
   // Get keys from URL
   var urlItems = window.location.hash.split("/");
-  urlItems.forEach(item => {
+  urlItems.forEach(function(item) {
     switch (item.slice(0, 2)) {
       case "%g":
-        this.urlGameKey = item.slice(2);
+        self.urlGameKey = item.slice(2);
         break;
       case "%u":
-        this.urlPlayerKey = item.slice(2);
+        self.urlPlayerKey = item.slice(2);
         break;
       case "%w":
-        this.urlWatcherKey = item.slice(2);
+        self.urlWatcherKey = item.slice(2);
         break;
     }
   });
@@ -103,7 +105,7 @@ App.prototype.attemptURLConnect = function(snapshot) {
 App.prototype.onHostButton = function() {
   var currentAnimals = [];
   var animalsToTry = this.jsonData.animals.slice();
-  this.activeGames().forEach(game => currentAnimals.push(game.animal));
+  this.activeGames().forEach(function(game) { return currentAnimals.push(game.animal); });
 
   // Keep trying to get an animal not currently in use
   var animalIndex = util.randomIndex(animalsToTry);
@@ -167,24 +169,24 @@ App.prototype.onSubmitNameButton = function() {
     return;
   }
 
-  this.foundGame.child('numPlayers').transaction(currNumPlayers => {
+  this.foundGame.child('numPlayers').transaction(function(currNumPlayers) {
     return currNumPlayers + 1;
-  }, (err, committed, snapshot) => {
+  }, function(err, committed, snapshot) {
     if (!committed) {
       return;
     }
-    var playerObj = this.foundGame.child("players").push({
+    var playerObj = self.foundGame.child("players").push({
       name: name,
-      isHost: this.isHost,
+      isHost: self.isHost,
       score: 0,
       rankTime: Date.now(),
-      color: this.selectedColor(),
+      color: self.selectedColor(),
       signPosition: util.randomPick(['left', 'right', 'center']),
       rank: snapshot.val(),
       asleep: false
     });
-    window.location.hash = "/%g" + this.foundGame.key() + "/%u" + playerObj.key();
-    this.game = new Game(this, this.foundGame, playerObj);
+    window.location.hash = "/%g" + self.foundGame.key() + "/%u" + playerObj.key();
+    self.game = new Game(self, self.foundGame, playerObj);
   });
 };
 

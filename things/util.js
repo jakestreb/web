@@ -1,13 +1,13 @@
 
 // Binds the value of x to value at location firebase.
 exports.bindVal = function(firebase, x) {
-  firebase.on("value", snapshot => x = snapshot.val());
+  firebase.on("value", function(snapshot) { return x = snapshot.val(); });
 };
 
 // Binds the function f to the value at location firebase.
 // Whenever the firebase value changes, f is called with the new value.
 exports.bindFunc = function(firebase, f) {
-  firebase.on("value", snapshot => f(snapshot.val()));
+  firebase.on("value", function(snapshot) { return f(snapshot.val()); });
 };
 
 // Returns a random element of the array.
@@ -39,7 +39,7 @@ exports.randomInsert = function(array, item) {
 
 // Object forEach, calls func with (val, key)
 exports.forEach = function(obj, func) {
-  Object.keys(obj).forEach(key => func(obj[key], key));
+  Object.keys(obj).forEach(function(key) { return func(obj[key], key); });
 };
 
 exports.size = function(obj) {
@@ -47,7 +47,7 @@ exports.size = function(obj) {
 };
 
 exports.values = function(obj) {
-  return Object.keys(obj).map(key => {
+  return Object.keys(obj).map(function(key) {
     return obj[key];
   });
 };
@@ -96,7 +96,7 @@ exports.count = function(arr, cond) {
 
 // Evaluates an obsArray of observables
 exports.evaluate = function(obsArray) {
-  return obsArray.peek().map(val => val());
+  return obsArray.peek().map(function(val) { return val(); });
 };
 
 // Options should have the following properties:
@@ -114,7 +114,7 @@ exports.alert = function(options) {
   "</div>";
   $('#game_content').hide();
   $('body').prepend(dom);
-  $('.alert_button').on('click', () => {
+  $('.alert_button').on('click', function() {
     $('.alert').remove();
     $('#game_content').show();
     options.buttonFunc();

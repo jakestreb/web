@@ -12,7 +12,7 @@ var util = require('./util.js');
       ka.subscribe(optSubscription);
     }
 
-    firebaseRef.on('child_added', (childSnapshot, prevChildKey) => {
+    firebaseRef.on('child_added', function(childSnapshot, prevChildKey) {
       var child = childSnapshot.val();
       child.key = childSnapshot.key();
 
@@ -23,31 +23,31 @@ var util = require('./util.js');
       else if (prevChildKey === null) ka.unshift(child);
       // Otherwise, find the correct index to put it in
       else {
-        var prevChildIndex = util.findIndex(ka.peek(), item => item.key === prevChildKey);
+        var prevChildIndex = util.findIndex(ka.peek(), function(item) { return item.key === prevChildKey; });
         ka.splice(prevChildIndex + 1, 0, child);
       }
     });
 
-    firebaseRef.on('child_moved', (childSnapshot, prevChildKey) => {
+    firebaseRef.on('child_moved', function(childSnapshot, prevChildKey) {
       var child = childSnapshot.val();
       child.key = childSnapshot.key();
 
-      var oldChildIndex = util.findIndex(ka.peek(), item => item.key === child.key);
+      var oldChildIndex = util.findIndex(ka.peek(), function(item) { return item.key === child.key; });
       var newChildIndex = 0;
 
       ka.splice(oldChildIndex, 1);
 
       if (prevChildKey !== null) {
-        newChildIndex = util.findIndex(ka.peek(), item => item.key === prevChildKey) + 1;
+        newChildIndex = util.findIndex(ka.peek(), function(item) { return item.key === prevChildKey; }) + 1;
       }
       ka.splice(newChildIndex, 0, child);
     });
 
-    firebaseRef.on('child_removed', childSnapshot => {
-        var childIndex = util.findIndex(ka.peek(), item => {
-          return item.key === childSnapshot.key();
-        });
-        ka.splice(childIndex, 1);
+    firebaseRef.on('child_removed', function(childSnapshot) {
+      var childIndex = util.findIndex(ka.peek(), function(item) {
+        return item.key === childSnapshot.key();
+      });
+      ka.splice(childIndex, 1);
     });
 
     return ka;
@@ -60,7 +60,7 @@ var util = require('./util.js');
       obs.subscribe(optSubscription);
     }
 
-    firebaseRef.on('value', snapshot => {
+    firebaseRef.on('value', function(snapshot) {
       obs(snapshot.val());
     });
 
@@ -77,7 +77,7 @@ var util = require('./util.js');
       ka.subscribe(optArraySubscription);
     }
 
-    firebaseRef.on('child_added', (childSnapshot, prevChildKey) => {
+    firebaseRef.on('child_added', function(childSnapshot, prevChildKey) {
       var child = childSnapshot.val();
       child.key = childSnapshot.key();
       child = ko.observable(child);
@@ -89,25 +89,25 @@ var util = require('./util.js');
       else if (prevChildKey === null) ka.unshift(child);
       // Otherwise, find the correct index to put it in
       else {
-        var prevChildIndex = util.findIndex(ka.peek(), item => {
+        var prevChildIndex = util.findIndex(ka.peek(), function(item) {
           return item.peek().key === prevChildKey;
         });
         ka.splice(prevChildIndex + 1, 0, child);
       }
     });
 
-    firebaseRef.on('child_removed', childSnapshot => {
-        var childIndex = util.findIndex(ka.peek(), item => {
+    firebaseRef.on('child_removed', function(childSnapshot) {
+        var childIndex = util.findIndex(ka.peek(), function(item) {
           return item.peek().key === childSnapshot.key();
         });
         ka.splice(childIndex, 1);
     });
 
-    firebaseRef.on('child_changed', (childSnapshot, prevChildKey) => {
+    firebaseRef.on('child_changed', function(childSnapshot, prevChildKey) {
       var child = childSnapshot.val();
       child.key = childSnapshot.key();
 
-      var childIndex = util.findIndex(ka.peek(), item => item.peek().key === child.key);
+      var childIndex = util.findIndex(ka.peek(), function(item) { return item.peek().key === child.key; });
       var childObs = ka.peek()[childIndex];
       childObs(child);
     });
