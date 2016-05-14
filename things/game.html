@@ -72,9 +72,9 @@
           <div class='banner_right_fringe'></div>
         </div>
         <div class='score_adjuster' data-bind="visible: $parent.players.showAdjusters">
-          <div class='minus' data-bind="click: $root.scoreAdjustment.bind($root, scoreAdjustment() - 1)">-</div>
+          <div class='minus' data-bind="click: scoreAdjustment(scoreAdjustment() - 1)">-</div>
           <div class='score_adjustment' data-bind='text: scoreAdjustment()'></div>
-          <div class='plus' data-bind="click: $root.scoreAdjustment.bind($root, scoreAdjustment() + 1)">+</div>
+          <div class='plus' data-bind="click: scoreAdjustment(scoreAdjustment() + 1)">+</div>
         </div>
       </div>
     </div>
