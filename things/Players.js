@@ -88,6 +88,7 @@ Players.prototype.buildFrameObj = function(player, rank) {
 
 // Writes new player order to database, only host should do this
 Players.prototype.setRanks = function(optRemoveRank) {
+  var self = this;
   var playerOrder = util.evaluate(this.players);
   playerOrder.sort(function(playerA, playerB) {
     var aPts = playerA.score;

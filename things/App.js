@@ -164,6 +164,7 @@ App.prototype.showNamePrompt = function() {
 };
 
 App.prototype.onSubmitNameButton = function() {
+  var self = this;
   var name = $('#name').val();
   if (name === "") {
     return;

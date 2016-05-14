@@ -6,6 +6,7 @@ var util = require('./util.js');
 
 // Handles log in and creating a game
 function App() {
+  var self = this;
   this.database = new Firebase('https://thingsgame.firebaseio.com/');
 
   this.selectedGame = ko.observable(null);
@@ -26,12 +27,12 @@ function App() {
   this.activeGames = ko.fireArray(this.database);
 
   // Load JSON data
-  _loadJSON(response => {
-    this.jsonData = JSON.parse(response);
-    this.colors(this.jsonData.colors.map(swatch => ko.observableArray(swatch)));
+  _loadJSON(function(response) {
+    self.jsonData = JSON.parse(response);
+    self.colors(self.jsonData.colors.map(function(swatch) { return ko.observableArray(swatch); }));
   });
 
-  this.database.once('value', snapshot => this.attemptURLConnect(snapshot));
+  this.database.once('value', function(snapshot) { return self.attemptURLConnect(snapshot); });
 
   // TODO: Use knockout
   $('#join').on('click', this.onJoinButton.bind(this));
@@ -46,18 +47,19 @@ App.prototype.selectGame = function(game, event) {
 };
 
 App.prototype.attemptURLConnect = function(snapshot) {
+  var self = this;
   // Get keys from URL
   var urlItems = window.location.hash.split("/");
-  urlItems.forEach(item => {
+  urlItems.forEach(function(item) {
     switch (item.slice(0, 2)) {
       case "%g":
-        this.urlGameKey = item.slice(2);
+        self.urlGameKey = item.slice(2);
         break;
       case "%u":
-        this.urlPlayerKey = item.slice(2);
+        self.urlPlayerKey = item.slice(2);
         break;
       case "%w":
-        this.urlWatcherKey = item.slice(2);
+        self.urlWatcherKey = item.slice(2);
         break;
     }
   });
@@ -104,7 +106,7 @@ App.prototype.attemptURLConnect = function(snapshot) {
 App.prototype.onHostButton = function() {
   var currentAnimals = [];
   var animalsToTry = this.jsonData.animals.slice();
-  this.activeGames().forEach(game => currentAnimals.push(game.animal));
+  this.activeGames().forEach(function(game) { return currentAnimals.push(game.animal); });
 
   // Keep trying to get an animal not currently in use
   var animalIndex = util.randomIndex(animalsToTry);
@@ -163,29 +165,30 @@ App.prototype.showNamePrompt = function() {
 };
 
 App.prototype.onSubmitNameButton = function() {
+  var self = this;
   var name = $('#name').val();
   if (name === "") {
     return;
   }
 
-  this.foundGame.child('numPlayers').transaction(currNumPlayers => {
+  this.foundGame.child('numPlayers').transaction(function(currNumPlayers) {
     return currNumPlayers + 1;
-  }, (err, committed, snapshot) => {
+  }, function(err, committed, snapshot) {
     if (!committed) {
       return;
     }
-    var playerObj = this.foundGame.child("players").push({
+    var playerObj = self.foundGame.child("players").push({
       name: name,
-      isHost: this.isHost,
+      isHost: self.isHost,
       score: 0,
       rankTime: Date.now(),
-      color: this.selectedColor(),
+      color: self.selectedColor(),
       signPosition: util.randomPick(['left', 'right', 'center']),
       rank: snapshot.val(),
       asleep: false
     });
-    window.location.hash = "/%g" + this.foundGame.key() + "/%u" + playerObj.key();
-    this.game = new Game(this, this.foundGame, playerObj);
+    window.location.hash = "/%g" + self.foundGame.key() + "/%u" + playerObj.key();
+    self.game = new Game(self, self.foundGame, playerObj);
   });
 };
 
@@ -218,13 +221,14 @@ var util = require('./util.js');
 
 // Handles preparing the game and moving between states
 function Game(app, gameObj, playerObj, isWatching) {
+  var self = this;
   this.app = app;
   this.gameObj = gameObj;
   this.playerObj = playerObj;
   this.isWatching = isWatching;
 
   this.gameName = ko.fireObservable(this.gameObj.child('animal'));
-  this.playerName = ko.fireObservable(this.playerObj.child('name'), name => {
+  this.playerName = ko.fireObservable(this.playerObj.child('name'), function(name) {
     if (name === null) {
       // You've been removed
       window.location.hash = "";
@@ -242,14 +246,14 @@ function Game(app, gameObj, playerObj, isWatching) {
   this.responded = ko.fireObservable(this.playerObj.child('responded'));
 
   // Show prompt computeds
-  this.showBeginButton = ko.computed(() => {
-    return this.state() === State.JOIN && this.isHost();
+  this.showBeginButton = ko.computed(function() {
+    return self.state() === State.JOIN && self.isHost();
   });
-  this.showCompleteButton = ko.computed(() => {
-    return this.state() === State.GUESS && this.isHost();
+  this.showCompleteButton = ko.computed(function() {
+    return self.state() === State.GUESS && self.isHost();
   });
-  this.showSubmitPrompt = ko.computed(() => {
-    return !this.responded() && this.state() === State.RESPOND;
+  this.showSubmitPrompt = ko.computed(function() {
+    return !self.responded() && self.state() === State.RESPOND;
   });
 
   this.players = null;
@@ -259,42 +263,46 @@ function Game(app, gameObj, playerObj, isWatching) {
   // Set the game and player names before building the dom
   var loadBody = $.Deferred();
   var domFile = this.isWatching ? 'watch.html' : 'game.html';
-  $(document.body).load(domFile, () => loadBody.resolve());
-  loadBody.promise().then(() => {
-    this.players = new Players(this);
-    this.responses = new Responses(this);
-    this.poll = new Poll(this);
-    ko.applyBindings(this, $('#game_content').get(0));
-    if (this.state() === State.INIT) {
-      this.onStateChange(State.INIT);
+  $(document.body).load(domFile, function() { return loadBody.resolve(); });
+  loadBody.promise().then(function() {
+    self.players = new Players(self);
+    self.responses = new Responses(self);
+    self.poll = new Poll(self);
+    ko.applyBindings(self, $('#game_content').get(0));
+    if (self.state() === State.INIT) {
+      self.onStateChange(State.INIT);
     }
   });
 
   // Subscription skips initial setting notice
-  this.state.subscribe(newState => this.onStateChange(newState));
+  this.state.subscribe(function(newState) {
+    return self.onStateChange(newState);
+  });
 }
 
 Game.prototype.onClickSettings = function(event) {
+  var self = this;
   var items = [{
       title: 'Next round',
       icon: 'fa fa-forward',
-      fn: () => this.onNextRound(),
+      fn: function() { return self.onNextRound(); },
       visible: this.isHost()
     }, {
       title: 'Sit out this round',
       icon: 'fa fa-bed',
-      fn: () => this.players.setSleeping(this.playerObj.key(), true),
+      fn: function() { return self.players.setSleeping(self.playerObj.key(), true); },
       visible: !this.isHost()
     }, {
       title: 'Leave game',
       icon: 'fa fa-sign-out',
-      fn: () => this.removeFromGame(this.playerObj.key())
+      fn: function() { return self.removeFromGame(self.playerObj.key()); }
   }];
   basicContext.show(items, event.originalEvent);
 };
 
 Game.prototype.onStateChange = function(newState) {
   console.log('state => ' + newState);
+  var self = this;
 
   switch (newState) {
     case State.JOIN:
@@ -346,8 +354,8 @@ Game.prototype.onStateChange = function(newState) {
       });
       break;
     case State.SCORE:
-      this.playerObj.child('score').once('value', score => {
-        this.playerObj.child('info').set(score.val().toString());
+      this.playerObj.child('score').once('value', function(score) {
+        self.playerObj.child('info').set(score.val().toString());
       });
       break;
     case State.RECAP:
@@ -363,27 +371,28 @@ Game.prototype.onNextRound = function() {
 };
 
 Game.prototype.removeFromGame = function(playerKey) {
+  var self = this;
   if (playerKey === this.playerObj.key() && this.isHost()) {
     // The host is leaving, game is over
     this.app.database.child(this.gameObj.key()).set(null);
   }
   else {
     // Wake the player up (in case they were asleep) for accounting and moving purposes
-    this.players.setSleeping(playerKey, false).then(() => {
+    this.players.setSleeping(playerKey, false).then(function() {
       // If the player has responsed, remove response
-      this.responses.responses().forEach(response => {
+      self.responses.responses().forEach(function(response) {
         if (response.playerKey === playerKey) {
-          this.gameObj.child('responses').child(response.key).remove();
+          self.gameObj.child('responses').child(response.key).remove();
         }
       });
       // Decrement numPlayers
-      return this.gameObj.child('numPlayers').transaction(currNumPlayers => {
+      return self.gameObj.child('numPlayers').transaction(function(currNumPlayers) {
         return currNumPlayers - 1;
       });
-    }).then(() => {
+    }).then(function() {
       // Remove player entirely
       // This will not execute until numPlayers transaction succeeds
-      this.gameObj.child('players').child(playerKey).remove();
+      self.gameObj.child('players').child(playerKey).remove();
     });
   }
 };
@@ -405,12 +414,13 @@ Game.prototype.onSubmit = function() {
 
 // If overridePlayerKey is not given, the current player is assumed
 Game.prototype.onGuessed = function(overridePlayerKey) {
+  var self = this;
   var playerKey = overridePlayerKey || this.playerObj.key();
   this.gameObj.child('players').child(playerKey).child('guessed').set(true);
   // Look into responsesInfo, find your response and eliminate it
-  this.responses.responses().forEach(response => {
+  this.responses.responses().forEach(function(response) {
     if (response().playerKey === playerKey) {
-      this.gameObj.child('responses').child(response().key).child('eliminated').set(true);
+      self.gameObj.child('responses').child(response().key).child('eliminated').set(true);
     }
   });
 };
@@ -437,11 +447,12 @@ var FRAME_TYPES = ['frame_oval', 'frame_square', 'frame_rect'];
 
 // Handles creation and maintenance of the list of players
 function Players(game) {
+  var self = this;
   this.game = game;
   this.gameObj = game.gameObj;
 
   this.framesString = "";
-  this.gameObj.child('frames').once('value', snap => this.framesString = snap.val());
+  this.gameObj.child('frames').once('value', function(snap) { return self.framesString = snap.val(); });
 
   this.numPlayers = ko.fireObservable(this.gameObj.child('numPlayers'));
   this.numSleeping = ko.fireObservable(this.gameObj.child('numSleeping'));
@@ -451,33 +462,33 @@ function Players(game) {
 
   this.color = ko.fireObservable(this.game.playerObj.child('color'));
 
-  this.isAsleep = ko.fireObservable(this.game.playerObj.child('asleep'), sleeping => {
+  this.isAsleep = ko.fireObservable(this.game.playerObj.child('asleep'), function(sleeping) {
     if (sleeping) {
-      this.sleepAlert();
+      self.sleepAlert();
     }
   });
 
   // Define frame types observable and create listener to maintain it.
   this.frames = ko.observableArray();
 
-  this.players = ko.fireArrayObservables(this.gameObj.child('players').orderByChild('rank'), players => {
+  this.players = ko.fireArrayObservables(this.gameObj.child('players').orderByChild('rank'), function(players) {
     var numPlayers = players.length;
-    var numFrames = this.frames().length;
+    var numFrames = self.frames().length;
     // Add frames
     while (numFrames < numPlayers) {
       var nextRank = numFrames + 1;
-      var player = util.find(players, p => p.peek().rank === nextRank);
-      this.frames.push(this.buildFrameObj(player, nextRank));
+      var player = util.find(players, function(p) { return p.peek().rank === nextRank; });
+      self.frames.push(self.buildFrameObj(player, nextRank));
       numFrames++;
     }
     // Remove frames & player dom
     while (numFrames > numPlayers) {
       // Find which player is missing
       for (var r = 1; r <= numFrames; r++) {
-        if (!util.find(players, p => p.peek().rank === r)) {
+        if (!util.find(players, function(p) { return p.peek().rank === r; })) {
           // If there is no player with rank r, remove that player DOM
-          if (this.game.isHost()) {
-            this.setRanks(r); // Removes player ranked r
+          if (self.game.isHost()) {
+            self.setRanks(r); // Removes player ranked r
           }
           numFrames--;
         }
@@ -485,25 +496,25 @@ function Players(game) {
     }
   });
 
-  this.awakeCount = ko.computed(() => {
-    return this.numPlayers() - this.numSleeping();
+  this.awakeCount = ko.computed(function() {
+    return self.numPlayers() - self.numSleeping();
   });
   // Re-check if responses are all in if awakeCount changes
-  this.awakeCount.subscribe(numAwake => {
-    if (this.game.state() === State.RESPOND) {
-      this.game.responses.checkIfAllIn();
+  this.awakeCount.subscribe(function(numAwake) {
+    if (self.game.state() === State.RESPOND) {
+      self.game.responses.checkIfAllIn();
     }
   });
 
-  this.rankChange.subscribe(changed => {
+  this.rankChange.subscribe(function(changed) {
     if (changed) {
-      this.movePlayers(changed);
+      self.movePlayers(changed);
     }
   });
 
   // Computed for showing score adjusters
-  this.showAdjusters = ko.computed(() => {
-    return this.game.state() === State.SCORE && this.game.isHost();
+  this.showAdjusters = ko.computed(function() {
+    return self.game.state() === State.SCORE && self.game.isHost();
   });
 }
 
@@ -515,31 +526,32 @@ Players.prototype.buildFrameObj = function(player, rank) {
 
 // Writes new player order to database, only host should do this
 Players.prototype.setRanks = function(optRemoveRank) {
+  var self = this;
   var playerOrder = util.evaluate(this.players);
-  playerOrder.sort((playerA, playerB) => {
+  playerOrder.sort(function(playerA, playerB) {
     var aPts = playerA.score;
     var bPts = playerB.score;
     return aPts !== bPts ? bPts - aPts : playerA.rankTime - playerB.rankTime;
   });
-  playerOrder.forEach((player, index) => {
+  playerOrder.forEach(function(player, index) {
     if (index + 1 !== player.rank) {
       // Setting new rank in db
-      this.gameObj.child('players').child(player.key).update({
+      self.gameObj.child('players').child(player.key).update({
         rank: index + 1,
         rankTime: Date.now(),
         info: null // Also nullify info, since players are about to move
       });
     }
   });
-  this.gameObj.child('rankChange').set(optRemoveRank || true).then(() => {
-    this.gameObj.child('rankChange').set(false);
+  this.gameObj.child('rankChange').set(optRemoveRank || true).then(function() {
+    self.gameObj.child('rankChange').set(false);
   });
 };
 
 Players.prototype.movePlayers = function(optRemoveRank) {
   var removeRank = typeof optRemoveRank === "number" ? optRemoveRank : false;
   // Get all frames with players walking out
-  var activeFrames = this.frames().filter(frame => {
+  var activeFrames = this.frames().filter(function(frame) {
     var player = frame.player();
     if (player.rank !== frame.rank || player.rank === removeRank) {
       $('.frame_' + frame.rank + ' .sign').addClass('unlifted'); // Hide all signs while players are walking
@@ -547,39 +559,39 @@ Players.prototype.movePlayers = function(optRemoveRank) {
     }
   });
   var outCount = 0;
-  var getBody = frame => $('.frame_' + frame.rank + ' .body');
+  var getBody = function(frame) { return $('.frame_' + frame.rank + ' .body'); };
   // Make all players walk out
-  activeFrames.forEach(frame => {
+  activeFrames.forEach(function(frame) {
     var player = frame.player();
     frame.moving(player.rank < frame.rank ? 'left_out' : 'right_out');
-    getBody(frame).one('animationend', () => {
+    getBody(frame).one('animationend', function() {
       outCount++;
       if (outCount === activeFrames.length) {
         if (removeRank) {
           // Remove the last frame
-          $('.frame_' + this.frames().length).remove();
-          this.frames.pop();
+          $('.frame_' + self.frames().length).remove();
+          self.frames.pop();
         }
         walkIn();
       }
     });
   });
   // Called once all players have walked out
-  var walkIn = () => {
+  var walkIn = function() {
     var currentPlayers = util.evaluate(this.players);
-    activeFrames.forEach(frame => {
+    activeFrames.forEach(function(frame) {
       frame.empty(true);
       frame.moving(undefined);
-      var newPlayerIndex = util.findIndex(currentPlayers, player => player.rank === frame.rank);
+      var newPlayerIndex = util.findIndex(currentPlayers, function(player) { return player.rank === frame.rank; });
       if (newPlayerIndex === -1) {
         return;
       }
       // TODO: Updates received during movement are ignored
       frame.player(currentPlayers[newPlayerIndex]);
-      setTimeout(() => {
+      setTimeout(function() {
         frame.empty(false);
         frame.moving(newPlayerIndex + 1 < frame.rank ? 'left_in' : 'right_in');
-        getBody(frame).one('animationend', () => {
+        getBody(frame).one('animationend', function() {
           frame.moving(undefined);
           $('.frame_' + frame.rank + ' .sign').removeClass('unlifted');
         });
@@ -589,48 +601,50 @@ Players.prototype.movePlayers = function(optRemoveRank) {
 };
 
 Players.prototype.onClickPlayerMenu = function(frame, event) {
+  var self = this;
   var player = frame.player();
   var isHost = player.isHost;
   var items = [{
       title: 'Give point',
       icon: 'fa fa-plus',
-      fn: () => this.adjustScore(player.key, 1)
+      fn: function() { return self.adjustScore(player.key, 1); }
     }, {
       title: 'Take point',
       icon: 'fa fa-minus',
-      fn: () => this.adjustScore(player.key, -1)
+      fn: function() { return self.adjustScore(player.key, -1); }
     }, {
     }, {
       title: 'Mark response guessed',
       icon: 'fa fa-quote-left',
       visible: !isHost && this.game.state() === State.GUESS,
       disabled: player.guessed,
-      fn: () => this.game.onGuessed(player.key)
+      fn: function() { return self.game.onGuessed(player.key); }
     }, {
       title: 'Sit out this round',
       icon: 'fa fa-bed',
       visible: !isHost,
       disabled: player.asleep,
-      fn: () => this.setSleeping(player.key, true)
+      fn: function() { return self.setSleeping(player.key, true); }
     }, {
       title: 'Remove player',
       icon: 'fa fa-ban',
       visible: !isHost,
-      fn: () => this.game.removeFromGame(player.key)
+      fn: function() { return self.game.removeFromGame(player.key); }
   }];
   basicContext.show(items, event.originalEvent);
 };
 
 // Sets the status of the player sleeping to bool
 Players.prototype.setSleeping = function(playerKey, bool) {
+  var self = this;
   // Sets player to sleeping and increments numSleeping
   var playerObj = this.gameObj.child('players').child(playerKey);
-  return playerObj.child('asleep').transaction(sleeping => {
+  return playerObj.child('asleep').transaction(function(sleeping) {
     return sleeping === bool ? undefined : bool;
-  }, (error, committed, snapshot) => {
+  }, function(error, committed, snapshot) {
     if (committed) {
       // Only update numSleeping if asleep value changed
-      return this.gameObj.child('numSleeping').transaction(numSleeping => {
+      return self.gameObj.child('numSleeping').transaction(function(numSleeping) {
         return numSleeping + (bool ? 1 : -1);
       });
     }
@@ -639,12 +653,13 @@ Players.prototype.setSleeping = function(playerKey, bool) {
 
 // Adjusts a players score by amt
 Players.prototype.adjustScore = function(key, amt) {
+  var self = this;
   this.gameObj.child('players').child(key).child('score')
-  .transaction(currScore => {
+  .transaction(function(currScore) {
       return currScore + amt;
-  }, (err, committed, snapshot) => {
+  }, function(err, committed, snapshot) {
     if (!committed) return;
-    this.setRanks();
+    self.setRanks();
   });
 };
 
@@ -652,26 +667,27 @@ Players.prototype.sleepAlert = function() {
   util.alert({
     text: "You're on break",
     buttonText: "Back to the game",
-    buttonFunc: () => this.setSleeping(this.game.playerObj.key(), false),
+    buttonFunc: function() { return self.setSleeping(self.game.playerObj.key(), false); },
     color: this.color()
   });
 };
 
 // Host only
 Players.prototype.onSetScores = function() {
-  this.frames().forEach(frame => {
+  var self = this;
+  this.frames().forEach(function(frame) {
     var adj = frame.scoreAdjustment();
     var key = frame.player().key;
-    var scoreRef = this.gameObj.child('players').child(key).child('score');
-    scoreRef.once('value', snapshot => scoreRef.set(snapshot.val() + adj));
+    var scoreRef = self.gameObj.child('players').child(key).child('score');
+    scoreRef.once('value', function(snapshot) { return scoreRef.set(snapshot.val() + adj); });
     frame.scoreAdjustment(0); // Reset to 0 for next round
   });
   this.gameObj.child('state').set(State.RECAP);
   this.setRanks();
   // Show updated scores
-  this.players().forEach(player => {
-    var playerObj = this.gameObj.child('players').child(player().key);
-    playerObj.child('score').once('value', score => {
+  this.players().forEach(function(player) {
+    var playerObj = self.gameObj.child('players').child(player().key);
+    playerObj.child('score').once('value', function(score) {
       playerObj.child('info').set(score.val().toString());
     });
   });
@@ -698,6 +714,7 @@ var DURATION = 3000;
 
 // Handles creation of the list of questions and the poll process
 function Poll(game) {
+  var self = this;
   this.game = game;
   this.timer = new Timer();
   this.spinner = new Spinner();
@@ -708,12 +725,12 @@ function Poll(game) {
   this.allowVoting = ko.fireObservable(this.pollObj.child('allowVoting'));
   this.votes = ko.fireArray(this.pollObj.child('votes'));
 
-  this.leftHalfGradient = ko.computed(() => {
-    return "linear-gradient(90deg, " + this.game.players.color().color +
+  this.leftHalfGradient = ko.computed(function() {
+    return "linear-gradient(90deg, " + self.game.players.color().color +
       " 50%, transparent 50%)";
   });
-  this.sliceGradient = ko.computed(() => {
-    return "linear-gradient(90deg, transparent 50%, " + this.game.players.color().color +
+  this.sliceGradient = ko.computed(function() {
+    return "linear-gradient(90deg, transparent 50%, " + self.game.players.color().color +
       " 50%)";
   });
 
@@ -743,7 +760,7 @@ Poll.prototype.onVotesUpdate = function(votes) {
 
   // If someone voted, and it isn't already set, set the timeout.
   if (numVoters > 0) {
-    this.pollObj.child('timeout').transaction(currTimeout => {
+    this.pollObj.child('timeout').transaction(function(currTimeout) {
       return currTimeout === 'ready' ? Date.now() + DURATION : undefined;
     });
   }
@@ -754,18 +771,20 @@ Poll.prototype.onVotesUpdate = function(votes) {
 };
 
 Poll.prototype.onTimeoutChange = function(timeout) {
+  var self = this;
   if (typeof timeout === 'number') {
-    this.timer.start(timeout, () => {
-      if (this.game.isHost()) {
-        this.pickWinner();
+    this.timer.start(timeout, function() {
+      if (self.game.isHost()) {
+        self.pickWinner();
       }
     });
   }
 };
 
 Poll.prototype.onVote = function(choice) {
-  var alreadyVoted = util.find(this.votes(), vote => {
-    return vote.playerKey === this.game.playerObj.key();
+  var self = this;
+  var alreadyVoted = util.find(this.votes(), function(vote) {
+    return vote.playerKey === self.game.playerObj.key();
   });
   if (alreadyVoted || this.game.state() !== State.POLL) return;
   this.pollObj.child('votes').push({
@@ -782,9 +801,9 @@ Poll.prototype.onVote = function(choice) {
 // Only called by host
 Poll.prototype.pickWinner = function() {
   var count = { A: 0, B: 0, C: 0 };
-  this.votes().forEach(voteData => count[voteData.vote]++);
+  this.votes().forEach(function(voteData) { return count[voteData.vote]++; });
   var maxVotes = Math.max.apply(null, util.values(count));
-  var finalists = Object.keys(count).filter(choice => {
+  var finalists = Object.keys(count).filter(function(choice) {
     return count[choice] === maxVotes;
   });
   if (finalists.length > 1) {
@@ -800,10 +819,11 @@ Poll.prototype.pickWinner = function() {
 };
 
 Poll.prototype.onSpinnerUpdate = function(spinObj) {
+  var self = this;
   if (spinObj && spinObj.sequence) {
-    this.spinner.start(spinObj.choices, spinObj.sequence, spinObj.startIndex, item => {
-      if (this.game.isHost()) {
-        this.submitWinner(item);
+    this.spinner.start(spinObj.choices, spinObj.sequence, spinObj.startIndex, function(item) {
+      if (self.game.isHost()) {
+        self.submitWinner(item);
       }
     });
   }
@@ -811,12 +831,13 @@ Poll.prototype.onSpinnerUpdate = function(spinObj) {
 
 // Only called by host
 Poll.prototype.submitWinner = function(winner) {
+  var self = this;
   // Remove all choices except winner
   var removalKeys = [];
-  this.choices().forEach(choice => {
+  this.choices().forEach(function(choice) {
     if (choice.label !== winner) removalKeys.push(choice.key);
   });
-  removalKeys.forEach(key => this.pollObj.child('choices').child(key).remove());
+  removalKeys.forEach(function(key) { return self.pollObj.child('choices').child(key).remove(); });
   this.game.gameObj.update({
     question: winner,
     state: State.RESPOND
@@ -827,7 +848,7 @@ Poll.prototype.submitWinner = function(winner) {
 function Timer() {
   this.intervalId = null;
   this.isRunning = false;
-  this.stopCallback = () => {};
+  this.stopCallback = function() {};
 }
 
 Timer.prototype.reset = function() {
@@ -880,7 +901,7 @@ Timer.prototype.stop = function() {
 function Spinner() {
   this.intervalId = null;
   this.isRunning = false;
-  this.stopCallback = () => {};
+  this.stopCallback = function() {};
 }
 
 Spinner.prototype.start = function(choices, seq, startIndex, stopCallback) {
@@ -941,11 +962,12 @@ var util = require('./util.js');
 
 // Handles creation and crossing out of the list of responses
 function Responses(game) {
+  var self = this;
   this.game = game;
 
   var responsesRef = this.game.gameObj.child('responses');
-  this.responses = ko.fireArrayObservables(responsesRef, newVal => {
-    this.checkIfAllIn(newVal);
+  this.responses = ko.fireArrayObservables(responsesRef, function(newVal) {
+    self.checkIfAllIn(newVal);
   });
 }
 
@@ -1001,7 +1023,7 @@ var util = require('./util.js');
       ka.subscribe(optSubscription);
     }
 
-    firebaseRef.on('child_added', (childSnapshot, prevChildKey) => {
+    firebaseRef.on('child_added', function(childSnapshot, prevChildKey) {
       var child = childSnapshot.val();
       child.key = childSnapshot.key();
 
@@ -1012,31 +1034,31 @@ var util = require('./util.js');
       else if (prevChildKey === null) ka.unshift(child);
       // Otherwise, find the correct index to put it in
       else {
-        var prevChildIndex = util.findIndex(ka.peek(), item => item.key === prevChildKey);
+        var prevChildIndex = util.findIndex(ka.peek(), function(item) { return item.key === prevChildKey; });
         ka.splice(prevChildIndex + 1, 0, child);
       }
     });
 
-    firebaseRef.on('child_moved', (childSnapshot, prevChildKey) => {
+    firebaseRef.on('child_moved', function(childSnapshot, prevChildKey) {
       var child = childSnapshot.val();
       child.key = childSnapshot.key();
 
-      var oldChildIndex = util.findIndex(ka.peek(), item => item.key === child.key);
+      var oldChildIndex = util.findIndex(ka.peek(), function(item) { return item.key === child.key; });
       var newChildIndex = 0;
 
       ka.splice(oldChildIndex, 1);
 
       if (prevChildKey !== null) {
-        newChildIndex = util.findIndex(ka.peek(), item => item.key === prevChildKey) + 1;
+        newChildIndex = util.findIndex(ka.peek(), function(item) { return item.key === prevChildKey; }) + 1;
       }
       ka.splice(newChildIndex, 0, child);
     });
 
-    firebaseRef.on('child_removed', childSnapshot => {
-        var childIndex = util.findIndex(ka.peek(), item => {
-          return item.key === childSnapshot.key();
-        });
-        ka.splice(childIndex, 1);
+    firebaseRef.on('child_removed', function(childSnapshot) {
+      var childIndex = util.findIndex(ka.peek(), function(item) {
+        return item.key === childSnapshot.key();
+      });
+      ka.splice(childIndex, 1);
     });
 
     return ka;
@@ -1049,7 +1071,7 @@ var util = require('./util.js');
       obs.subscribe(optSubscription);
     }
 
-    firebaseRef.on('value', snapshot => {
+    firebaseRef.on('value', function(snapshot) {
       obs(snapshot.val());
     });
 
@@ -1066,7 +1088,7 @@ var util = require('./util.js');
       ka.subscribe(optArraySubscription);
     }
 
-    firebaseRef.on('child_added', (childSnapshot, prevChildKey) => {
+    firebaseRef.on('child_added', function(childSnapshot, prevChildKey) {
       var child = childSnapshot.val();
       child.key = childSnapshot.key();
       child = ko.observable(child);
@@ -1078,25 +1100,25 @@ var util = require('./util.js');
       else if (prevChildKey === null) ka.unshift(child);
       // Otherwise, find the correct index to put it in
       else {
-        var prevChildIndex = util.findIndex(ka.peek(), item => {
+        var prevChildIndex = util.findIndex(ka.peek(), function(item) {
           return item.peek().key === prevChildKey;
         });
         ka.splice(prevChildIndex + 1, 0, child);
       }
     });
 
-    firebaseRef.on('child_removed', childSnapshot => {
-        var childIndex = util.findIndex(ka.peek(), item => {
+    firebaseRef.on('child_removed', function(childSnapshot) {
+        var childIndex = util.findIndex(ka.peek(), function(item) {
           return item.peek().key === childSnapshot.key();
         });
         ka.splice(childIndex, 1);
     });
 
-    firebaseRef.on('child_changed', (childSnapshot, prevChildKey) => {
+    firebaseRef.on('child_changed', function(childSnapshot, prevChildKey) {
       var child = childSnapshot.val();
       child.key = childSnapshot.key();
 
-      var childIndex = util.findIndex(ka.peek(), item => item.peek().key === child.key);
+      var childIndex = util.findIndex(ka.peek(), function(item) { return item.peek().key === child.key; });
       var childObs = ka.peek()[childIndex];
       childObs(child);
     });
@@ -7002,13 +7024,13 @@ ko.exportSymbol('nativeTemplateEngine', ko.nativeTemplateEngine);
 
 // Binds the value of x to value at location firebase.
 exports.bindVal = function(firebase, x) {
-  firebase.on("value", snapshot => x = snapshot.val());
+  firebase.on("value", function(snapshot) { return x = snapshot.val(); });
 };
 
 // Binds the function f to the value at location firebase.
 // Whenever the firebase value changes, f is called with the new value.
 exports.bindFunc = function(firebase, f) {
-  firebase.on("value", snapshot => f(snapshot.val()));
+  firebase.on("value", function(snapshot) { return f(snapshot.val()); });
 };
 
 // Returns a random element of the array.
@@ -7040,7 +7062,7 @@ exports.randomInsert = function(array, item) {
 
 // Object forEach, calls func with (val, key)
 exports.forEach = function(obj, func) {
-  Object.keys(obj).forEach(key => func(obj[key], key));
+  Object.keys(obj).forEach(function(key) { return func(obj[key], key); });
 };
 
 exports.size = function(obj) {
@@ -7048,7 +7070,7 @@ exports.size = function(obj) {
 };
 
 exports.values = function(obj) {
-  return Object.keys(obj).map(key => {
+  return Object.keys(obj).map(function(key) {
     return obj[key];
   });
 };
@@ -7097,7 +7119,7 @@ exports.count = function(arr, cond) {
 
 // Evaluates an obsArray of observables
 exports.evaluate = function(obsArray) {
-  return obsArray.peek().map(val => val.peek());
+  return obsArray.peek().map(function(val) { return val(); });
 };
 
 // Options should have the following properties:
@@ -7115,7 +7137,7 @@ exports.alert = function(options) {
   "</div>";
   $('#game_content').hide();
   $('body').prepend(dom);
-  $('.alert_button').on('click', () => {
+  $('.alert_button').on('click', function() {
     $('.alert').remove();
     $('#game_content').show();
     options.buttonFunc();
