@@ -4,7 +4,7 @@
       <div id="header_name" data-bind="text: playerName, style: { color: players.color().color }"></div>
       <div id="header_host" data-bind="text: $root.isHost() ? '(host)' : '', style: { color: players.color().color }"></div>
       <div id="header_game" data-bind="text: gameName"></div>
-      <div id="settings" class='settings_menu fa fa-cog' data-bind="click: (context, event) => onClickSettings(event)"></div>
+      <div id="settings" class='settings_menu fa fa-cog' data-bind="click: function(context, event) { onClickSettings(event); }"></div>
     </div>
     <div id="questions" class="flexy">
       <div class="timer" data-bind="visible: poll.allowVoting">
@@ -24,24 +24,24 @@
     <div id="prompt_container" class="flexy">
       <div id="submit_container" data-bind="visible: showSubmitPrompt">
         <div class="input_container">
-          <input id="response" maxlength="120" data-bind="enterKey: () => onSubmit()"></input>
+          <input id="response" maxlength="120" data-bind="enterKey: $root.onSubmit.bind($root)"></input>
           <div class="input_shadow"></div>
         </div>
-        <button id="submit" data-bind="click: () => onSubmit(), style: { backgroundColor: players.color().alt, borderColor: players.color().color }">
+        <button id="submit" data-bind="click: $root.onSubmit.bind($root), style: { backgroundColor: players.color().alt, borderColor: players.color().color }">
           <span class="fa fa-arrow-right"></span>
         </button>
       </div>
       <div id="guessed_container">
-        <button id="guessed" data-bind="visible: state() === State.GUESS, disable: guessed, click: () => onGuessed(), style: { backgroundColor: players.color().alt, borderColor: players.color().color }"><span class="fa fa-strikethrough"></span></button>
-        <button id="complete" data-bind="visible: showCompleteButton, click: () => onGuessingComplete(), style: { backgroundColor: players.color().alt, borderColor: players.color().color }"><span class="fa fa-arrow-right"></span></button>
+        <button id="guessed" data-bind="visible: state() === State.GUESS, disable: guessed, click: onGuessed(), style: { backgroundColor: players.color().alt, borderColor: players.color().color }"><span class="fa fa-strikethrough"></span></button>
+        <button id="complete" data-bind="visible: showCompleteButton, click: $root.onGuessingComplete.bind($root), style: { backgroundColor: players.color().alt, borderColor: players.color().color }"><span class="fa fa-arrow-right"></span></button>
       </div>
       <div id="scoring_container" data-bind="visible: isHost">
-        <button id="set_scores" data-bind="visible: state() === State.SCORE, click: () => players.onSetScores(), style: { backgroundColor: players.color().alt, borderColor: players.color().color }"><span class="fa fa-floppy-o"></span></button>
-        <button id="next_round" data-bind="visible: state() === State.RECAP, click: () => onNextRound(), style: { backgroundColor: players.color().alt, borderColor: players.color().color }"><span class="fa fa-arrow-right"></span></button>
+        <button id="set_scores" data-bind="visible: state() === State.SCORE, click: players.onSetScores.bind(players), style: { backgroundColor: players.color().alt, borderColor: players.color().color }"><span class="fa fa-floppy-o"></span></button>
+        <button id="next_round" data-bind="visible: state() === State.RECAP, click: $root.onNextRound.bind($root), style: { backgroundColor: players.color().alt, borderColor: players.color().color }"><span class="fa fa-arrow-right"></span></button>
       </div>
     </div>
     <div id="begin_container" data-bind="visible: showBeginButton">
-      <button id="begin" data-bind="click: () => onNextRound(), style: { backgroundColor: players.color().alt, borderColor: players.color().color }"><span class="fa fa-play"></span></button>
+      <button id="begin" data-bind="click: $root.onNextRound.bind($root), style: { backgroundColor: players.color().alt, borderColor: players.color().color }"><span class="fa fa-play"></span></button>
     </div>
     <div id="responses" class="flexy" data-bind="foreach: responses.responses, visible: state() === State.GUESS">
       <div class='response'>
@@ -52,7 +52,7 @@
     </div>
     <div id="players" class="flexy" data-bind="foreach: players.frames">
       <div class='frame' data-bind="css: 'frame_' + rank">
-        <div class='player_menu fa fa-cog' data-bind='visible: $root.isHost, click: (frame, event) => $root.players.onClickPlayerMenu(frame, event)'></div>
+        <div class='player_menu fa fa-cog' data-bind='visible: $root.isHost, click: function(frame, event) { $root.players.onClickPlayerMenu(frame, event); }'></div>
         <div class='frame_content' data-bind="css: type">
           <div class='body' data-bind='style: { opacity: player() ? (player().asleep ? "0.2" : "1.0") : "0.0" }, css: moving, visible: !empty()' >
             <div class='head' data-bind='style: { backgroundColor: player() ? player().color.color : "white" }'></div>

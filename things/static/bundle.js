@@ -549,6 +549,7 @@ Players.prototype.setRanks = function(optRemoveRank) {
 };
 
 Players.prototype.movePlayers = function(optRemoveRank) {
+  var self = this;
   var removeRank = typeof optRemoveRank === "number" ? optRemoveRank : false;
   // Get all frames with players walking out
   var activeFrames = this.frames().filter(function(frame) {
@@ -578,7 +579,7 @@ Players.prototype.movePlayers = function(optRemoveRank) {
   });
   // Called once all players have walked out
   var walkIn = function() {
-    var currentPlayers = util.evaluate(this.players);
+    var currentPlayers = util.evaluate(self.players);
     activeFrames.forEach(function(frame) {
       frame.empty(true);
       frame.moving(undefined);
@@ -664,6 +665,7 @@ Players.prototype.adjustScore = function(key, amt) {
 };
 
 Players.prototype.sleepAlert = function() {
+  var self = this;
   util.alert({
     text: "You're on break",
     buttonText: "Back to the game",
