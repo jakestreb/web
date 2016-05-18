@@ -183,10 +183,6 @@ App.prototype.onSubmitNameButton = function() {
       rank: snapshot.val(),
       asleep: false
     });
-    self.foundGame.child('log').push([{
-      player: playerObj.key(),
-      rank: snapshot.val()
-    }]);
     window.location.hash = "/%g" + self.foundGame.key() + "/%u" + playerObj.key();
     self.game = new Game(self, self.foundGame, playerObj);
   });

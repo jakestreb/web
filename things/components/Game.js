@@ -65,10 +65,19 @@ function Game(app, gameObj, playerObj, isWatching) {
     self.log.subscribe(function(logUpdate) {
       logUpdate.forEach(function(update) {
         console.warn('update', update);
-        self.players.movePlayers(update.value);
+        if (self.players.isMovingPlayers()) {
+          var unhandled = self.unhandledLog();
+          unhandled.push(update.value);
+          self.unhandledLog(unhandled);
+        }
+        else {
+          self.players.movePlayers([update.value]);
+        }
       });
     }, null, 'arrayChange');
   });
+
+  this.unhandledLog = ko.observable([]);
 
   // Subscription skips initial setting notice
   this.state.subscribe(function(newState) {
@@ -189,10 +198,10 @@ Game.prototype.removeFromGame = function(playerKey) {
       // Remove player entirely
       // This will not execute until numPlayers transaction succeeds
       self.gameObj.child('players').child(playerKey).remove();
-      self.gameObj.child('log').push([{
-        player: playerKey,
-        rank: null
-      }]);
+      self.gameObj.child('log').push({
+        event: 'removed',
+        player: playerKey
+      });
     });
   }
 };

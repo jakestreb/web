@@ -13,6 +13,7 @@ var ko = require('knockout');
 // - Disable emojis in responses
 // - Use cookies (in addition to URL) to remember game and player
 // - Add indicators to show who had responded
+// - Pick better colors
 // - Allow rejoining as a certain player (ping current players to see who is inactive?)
 // - Test action sequences (removals, rank changes, state changes) during disconnect then reconnect
 // - Test on iOS
@@ -23,7 +24,7 @@ var ko = require('knockout');
 // - Show preview of circle and character when choosing color and name
 // - Make responses have background color lighter than background, line spacing between background bars.
 //  Rotate background bars (slightly and independently of eachother)
-// - Faster walking
+// - Move gear closer to circle
 
 $(function() {
   window.app = new App();

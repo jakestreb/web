@@ -184,10 +184,6 @@ App.prototype.onSubmitNameButton = function() {
       rank: snapshot.val(),
       asleep: false
     });
-    self.foundGame.child('log').push([{
-      player: playerObj.key(),
-      rank: snapshot.val()
-    }]);
     window.location.hash = "/%g" + self.foundGame.key() + "/%u" + playerObj.key();
     self.game = new Game(self, self.foundGame, playerObj);
   });
@@ -278,10 +274,19 @@ function Game(app, gameObj, playerObj, isWatching) {
     self.log.subscribe(function(logUpdate) {
       logUpdate.forEach(function(update) {
         console.warn('update', update);
-        self.players.movePlayers(update.value);
+        if (self.players.isMovingPlayers()) {
+          var unhandled = self.unhandledLog();
+          unhandled.push(update.value);
+          self.unhandledLog(unhandled);
+        }
+        else {
+          self.players.movePlayers([update.value]);
+        }
       });
     }, null, 'arrayChange');
   });
+
+  this.unhandledLog = ko.observable([]);
 
   // Subscription skips initial setting notice
   this.state.subscribe(function(newState) {
@@ -402,10 +407,10 @@ Game.prototype.removeFromGame = function(playerKey) {
       // Remove player entirely
       // This will not execute until numPlayers transaction succeeds
       self.gameObj.child('players').child(playerKey).remove();
-      self.gameObj.child('log').push([{
-        player: playerKey,
-        rank: null
-      }]);
+      self.gameObj.child('log').push({
+        event: 'removed',
+        player: playerKey
+      });
     });
   }
 };
@@ -484,7 +489,6 @@ function Players(game) {
   this.players = ko.fireArrayObservables(this.gameObj.child('players').orderByChild('rank'), function(players) {
     var numPlayers = players.length;
     var numFrames = self.frames().length;
-    console.warn('players', players);
     // Add frames
     while (numFrames < numPlayers) {
       var nextRank = numFrames + 1;
@@ -493,19 +497,21 @@ function Players(game) {
       numFrames++;
     }
     // Remove frames & player dom
-    while (numFrames > numPlayers) {
-      // Find which player is missing
-      for (var r = 1; r <= numFrames; r++) {
-        if (!util.find(players, function(p) { return p.peek().rank === r; })) {
-          // If there is no player with rank r, remove that player DOM
-          if (self.game.isHost()) {
-            self.setRanks(r); // Removes player ranked r
-          }
-          numFrames--;
-        }
-      }
-    }
+    // while (numFrames > numPlayers) {
+    //   // Find which player is missing
+    //   for (var r = 1; r <= numFrames; r++) {
+    //     if (!util.find(players, function(p) { return p.peek().rank === r; })) {
+    //       // If there is no player with rank r, remove that player DOM
+    //       if (self.game.isHost()) {
+    //         self.setRanks();
+    //       }
+    //       numFrames--;
+    //     }
+    //   }
+    // }
   });
+
+  this.isMovingPlayers = ko.observable(false);
 
   this.awakeCount = ko.computed(function() {
     return self.numPlayers() - self.numSleeping();
@@ -534,7 +540,7 @@ Players.prototype.setRanks = function() {
   console.warn('setting ranks');
   var self = this;
   var playerOrder = util.evaluate(this.players);
-  var logUpdate = [];
+  var swap = false;
   playerOrder.sort(function(playerA, playerB) {
     var aPts = playerA.score;
     var bPts = playerB.score;
@@ -548,21 +554,24 @@ Players.prototype.setRanks = function() {
         rank: newRank,
         info: null // Also nullify info, since players are about to move
       });
-      logUpdate.push({
-        player: player.key,
-        rank: newRank
-      });
+      swap = true;
     }
   });
-  this.gameObj.child('log').push(logUpdate);
+  if (swap) {
+    this.gameObj.child('log').push({
+      event: 'moved'
+    });
+  }
 };
 
 Players.prototype.movePlayers = function(logUpdates) {
   console.warn('moving players');
+  this.isMovingPlayers(true);
   var self = this;
   var removePlayers = [];
   logUpdates.forEach(function(update) {
-    if (!update.rank) { removePlayers.push(update.player); }
+    console.warn('logUpdate', update);
+    if (update.event === 'removed') { removePlayers.push(update.player); }
   });
   console.warn('remove players', removePlayers);
   // Get all frames with players walking out
@@ -590,12 +599,18 @@ Players.prototype.movePlayers = function(logUpdates) {
             self.frames.pop();
           }
         }
-        walkIn();
+        if (removePlayers.length === outCount) {
+          checkIfComplete();
+        }
+        else {
+          walkIn();
+        }
       }
     });
   });
   // Called once all players have walked out
   var walkIn = function() {
+    var completedCount = 0;
     var currentPlayers = util.evaluate(self.players);
     activeFrames.forEach(function(frame) {
       frame.empty(true);
@@ -612,9 +627,25 @@ Players.prototype.movePlayers = function(logUpdates) {
         getBody(frame).one('animationend', function() {
           frame.moving(undefined);
           $('.frame_' + frame.rank + ' .sign').removeClass('unlifted');
+          completedCount++;
+          if (completedCount === activeFrames.length) {
+            // All animations complete
+            checkIfComplete();
+          }
         });
       }, 500);
     });
+  };
+
+  var checkIfComplete = function() {
+    var unhandled = self.game.unhandledLog();
+    self.game.unhandledLog([]);
+    if (unhandled.length > 0) {
+      self.movePlayers(unhandled);
+    }
+    else {
+      self.isMovingPlayers(false);
+    }
   };
 };
 
@@ -1043,6 +1074,7 @@ var ko = require('knockout');
 // - Disable emojis in responses
 // - Use cookies (in addition to URL) to remember game and player
 // - Add indicators to show who had responded
+// - Pick better colors
 // - Allow rejoining as a certain player (ping current players to see who is inactive?)
 // - Test action sequences (removals, rank changes, state changes) during disconnect then reconnect
 // - Test on iOS
@@ -1053,7 +1085,7 @@ var ko = require('knockout');
 // - Show preview of circle and character when choosing color and name
 // - Make responses have background color lighter than background, line spacing between background bars.
 //  Rotate background bars (slightly and independently of eachother)
-// - Faster walking
+// - Move gear closer to circle
 
 $(function() {
   window.app = new App();
