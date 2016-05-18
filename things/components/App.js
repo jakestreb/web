@@ -128,8 +128,7 @@ App.prototype.onHostButton = function() {
     animal: animalsToTry[animalIndex],
     frames: frames,
     numPlayers: 0,
-    numSleeping: 0,
-    rankChange: false
+    numSleeping: 0
   });
   this.isHost = true;
 
@@ -147,7 +146,7 @@ App.prototype.onJoinButton = function(watchOnly) {
       name: 'Watching',
       isHost: false,
       score: 0,
-      rankTime: Date.now(),
+      scoreTime: Date.now(),
       color: "#E74C3C",
       signPosition: 'center',
       rank: 0
@@ -173,19 +172,21 @@ App.prototype.onSubmitNameButton = function() {
   this.foundGame.child('numPlayers').transaction(function(currNumPlayers) {
     return currNumPlayers + 1;
   }, function(err, committed, snapshot) {
-    if (!committed) {
-      return;
-    }
+    if (!committed) { return; }
     var playerObj = self.foundGame.child("players").push({
       name: name,
       isHost: self.isHost,
       score: 0,
-      rankTime: Date.now(),
+      scoreTime: Date.now(),
       color: self.selectedColor(),
       signPosition: util.randomPick(['left', 'right', 'center']),
       rank: snapshot.val(),
       asleep: false
     });
+    self.foundGame.child('log').push([{
+      player: playerObj.key(),
+      rank: snapshot.val()
+    }]);
     window.location.hash = "/%g" + self.foundGame.key() + "/%u" + playerObj.key();
     self.game = new Game(self, self.foundGame, playerObj);
   });
@@ -195,7 +196,7 @@ App.prototype.onSubmitNameButton = function() {
 function _loadJSON(callback) {
   var xobj = new XMLHttpRequest();
   xobj.overrideMimeType("application/json");
-  xobj.open('GET', 'data.json', true);
+  xobj.open('GET', 'components/data.json', true);
   xobj.onreadystatechange = function () {
     if (xobj.readyState == 4 && xobj.status == "200") {
       // Required use of an anonymous callback as .open will NOT return a value but

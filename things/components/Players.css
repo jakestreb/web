@@ -1,9 +1,17 @@
 
 #players {
+  display: -webkit-flex;
+  display: -ms-flexbox;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-around;
-  align-items: center;
+  -webkit-flex-wrap: wrap;
+  -ms-flex-wrap: wrap;
+      flex-wrap: wrap;
+  -ms-flex-pack: distribute;
+    -webkit-justify-content: space-around;
+      justify-content: space-around;
+  -webkit-align-items: center;
+      -ms-flex-align: center;
+          align-items: center;
 }
 
 .player_menu {
@@ -44,7 +52,8 @@
 .score_adjuster {
   position: absolute;
   left: 50%;
-  transform: translate(-50%, 0);
+  -webkit-transform: translate(-50%, 0);
+          transform: translate(-50%, 0);
   bottom: 0;
   height: 20px;
   width: 60px;
@@ -86,23 +95,38 @@
 }
 
 .left_out {
-  animation: left 1.4s linear;
+  -webkit-animation: left 0.8s linear;
+          animation: left 0.8s linear;
   margin-left: -70px;
 }
 .left_in {
-  animation: left 1.4s linear;
-  animation-direction: reverse;
+  -webkit-animation: left 0.8s linear;
+          animation: left 0.8s linear;
+  -webkit-animation-direction: reverse;
+          animation-direction: reverse;
   margin-left: 0;
 }
 
 .right_out {
-  animation: right 1.4s linear;
+  -webkit-animation: right 0.8s linear;
+          animation: right 0.8s linear;
   margin-left: 70px;
 }
 .right_in {
-  animation: right 1.4s linear;
-  animation-direction: reverse;
+  -webkit-animation: right 0.8s linear;
+          animation: right 0.8s linear;
+  -webkit-animation-direction: reverse;
+          animation-direction: reverse;
   margin-left: 0;
+}
+
+@-webkit-keyframes left {
+  0% {  margin-left: 0; margin-top: 34px; }
+  20%  {  margin-left: -24px; margin-top: 37px; }
+  40%  {  margin-left: -48px; margin-top: 34px; }
+  60%  {  margin-left: -72px; margin-top: 36px; }
+  80%  {  margin-left: -96px; margin-top: 33px; }
+  100%   {  margin-left: -120px; margin-top: 35px; }
 }
 
 @keyframes left {
@@ -112,6 +136,15 @@
   60%  {  margin-left: -72px; margin-top: 36px; }
   80%  {  margin-left: -96px; margin-top: 33px; }
   to   {  margin-left: -120px; margin-top: 35px; }
+}
+
+@-webkit-keyframes right {
+  0% {  margin-left: 0; margin-top: 34px; }
+  20%  {  margin-left: 24px; margin-top: 37px; }
+  40%  {  margin-left: 48px; margin-top: 34px; }
+  60%  {  margin-left: 72px; margin-top: 37px; }
+  80%  {  margin-left: 96px; margin-top: 34px; }
+  100%   {  margin-left: 120px; margin-top: 35px; }
 }
 
 @keyframes right {
@@ -186,7 +219,8 @@
 .plaque {
   position: absolute;
   left: 50%;
-  transform: translate(-50%, 0);
+  -webkit-transform: translate(-50%, 0);
+          transform: translate(-50%, 0);
   bottom: 24px;
   height: 18px;
 }
@@ -207,9 +241,11 @@
   height: 35px;
   bottom: -40px;
   left: 25px;
-  transform: rotate(3deg);
+  -webkit-transform: rotate(3deg);
+          transform: rotate(3deg);
   background-color: #FBFBFB;
   border: 1px solid #E0E0E0;
+  -webkit-transition: bottom .25s;
   transition: bottom .25s;
 }
 .sign.lifted {
@@ -221,15 +257,18 @@
 }
 .sign.center {
   left: 25px;
-  transform: rotate(3deg);
+  -webkit-transform: rotate(3deg);
+          transform: rotate(3deg);
 }
 .sign.left {
   left: 15px;
-  transform: rotate(-4deg);
+  -webkit-transform: rotate(-4deg);
+          transform: rotate(-4deg);
 }
 .sign.right {
   left: 30px;
-  transform: rotate(7deg);
+  -webkit-transform: rotate(7deg);
+          transform: rotate(7deg);
 }
 
 .sign_content {
@@ -239,6 +278,7 @@
 }
 
 .player_name {
+  -webkit-transition: opacity 1.4s;
   transition: opacity 1.4s;
   opacity: 1.0;
   color: black;
@@ -246,6 +286,7 @@
   font-weight: 300;
   text-align: center;
   cursor: default;
+  white-space: nowrap;
 }
 
 .banner_left_fold {

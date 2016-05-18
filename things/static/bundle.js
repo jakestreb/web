@@ -129,8 +129,7 @@ App.prototype.onHostButton = function() {
     animal: animalsToTry[animalIndex],
     frames: frames,
     numPlayers: 0,
-    numSleeping: 0,
-    rankChange: false
+    numSleeping: 0
   });
   this.isHost = true;
 
@@ -148,7 +147,7 @@ App.prototype.onJoinButton = function(watchOnly) {
       name: 'Watching',
       isHost: false,
       score: 0,
-      rankTime: Date.now(),
+      scoreTime: Date.now(),
       color: "#E74C3C",
       signPosition: 'center',
       rank: 0
@@ -174,19 +173,21 @@ App.prototype.onSubmitNameButton = function() {
   this.foundGame.child('numPlayers').transaction(function(currNumPlayers) {
     return currNumPlayers + 1;
   }, function(err, committed, snapshot) {
-    if (!committed) {
-      return;
-    }
+    if (!committed) { return; }
     var playerObj = self.foundGame.child("players").push({
       name: name,
       isHost: self.isHost,
       score: 0,
-      rankTime: Date.now(),
+      scoreTime: Date.now(),
       color: self.selectedColor(),
       signPosition: util.randomPick(['left', 'right', 'center']),
       rank: snapshot.val(),
       asleep: false
     });
+    self.foundGame.child('log').push([{
+      player: playerObj.key(),
+      rank: snapshot.val()
+    }]);
     window.location.hash = "/%g" + self.foundGame.key() + "/%u" + playerObj.key();
     self.game = new Game(self, self.foundGame, playerObj);
   });
@@ -196,7 +197,7 @@ App.prototype.onSubmitNameButton = function() {
 function _loadJSON(callback) {
   var xobj = new XMLHttpRequest();
   xobj.overrideMimeType("application/json");
-  xobj.open('GET', 'data.json', true);
+  xobj.open('GET', 'components/data.json', true);
   xobj.onreadystatechange = function () {
     if (xobj.readyState == 4 && xobj.status == "200") {
       // Required use of an anonymous callback as .open will NOT return a value but
@@ -209,7 +210,7 @@ function _loadJSON(callback) {
 
 module.exports = App;
 
-},{"./Game.js":2,"./koFire.js":8,"./util.js":11}],2:[function(require,module,exports){
+},{"./Game.js":2,"./koFire.js":8,"./util.js":9}],2:[function(require,module,exports){
 
 var ko = require('./koFire.js');
 var basicContext = require('basiccontext');
@@ -226,6 +227,8 @@ function Game(app, gameObj, playerObj, isWatching) {
   this.gameObj = gameObj;
   this.playerObj = playerObj;
   this.isWatching = isWatching;
+
+  this.log = ko.fireArray(this.gameObj.child('log'));
 
   this.gameName = ko.fireObservable(this.gameObj.child('animal'));
   this.playerName = ko.fireObservable(this.playerObj.child('name'), function(name) {
@@ -262,7 +265,7 @@ function Game(app, gameObj, playerObj, isWatching) {
 
   // Set the game and player names before building the dom
   var loadBody = $.Deferred();
-  var domFile = this.isWatching ? 'watch.html' : 'game.html';
+  var domFile = this.isWatching ? 'components/watch.html' : 'components/game.html';
   $(document.body).load(domFile, function() { return loadBody.resolve(); });
   loadBody.promise().then(function() {
     self.players = new Players(self);
@@ -272,6 +275,12 @@ function Game(app, gameObj, playerObj, isWatching) {
     if (self.state() === State.INIT) {
       self.onStateChange(State.INIT);
     }
+    self.log.subscribe(function(logUpdate) {
+      logUpdate.forEach(function(update) {
+        console.warn('update', update);
+        self.players.movePlayers(update.value);
+      });
+    }, null, 'arrayChange');
   });
 
   // Subscription skips initial setting notice
@@ -393,6 +402,10 @@ Game.prototype.removeFromGame = function(playerKey) {
       // Remove player entirely
       // This will not execute until numPlayers transaction succeeds
       self.gameObj.child('players').child(playerKey).remove();
+      self.gameObj.child('log').push([{
+        player: playerKey,
+        rank: null
+      }]);
     });
   }
 };
@@ -435,7 +448,7 @@ Game.prototype.onGuessingComplete = function() {
 
 module.exports = Game;
 
-},{"./Players.js":3,"./Poll.js":4,"./Responses.js":5,"./State.js":6,"./koFire.js":8,"./util.js":11,"basiccontext":9}],3:[function(require,module,exports){
+},{"./Players.js":3,"./Poll.js":4,"./Responses.js":5,"./State.js":6,"./koFire.js":8,"./util.js":9,"basiccontext":10}],3:[function(require,module,exports){
 
 var ko = require('./koFire.js');
 var basicContext = require('basiccontext');
@@ -457,9 +470,6 @@ function Players(game) {
   this.numPlayers = ko.fireObservable(this.gameObj.child('numPlayers'));
   this.numSleeping = ko.fireObservable(this.gameObj.child('numSleeping'));
 
-  // Briefly set to true whenever a rank change occurs. Observable only useful for subscription.
-  this.rankChange = ko.fireObservable(this.gameObj.child('rankChange'));
-
   this.color = ko.fireObservable(this.game.playerObj.child('color'));
 
   this.isAsleep = ko.fireObservable(this.game.playerObj.child('asleep'), function(sleeping) {
@@ -474,6 +484,7 @@ function Players(game) {
   this.players = ko.fireArrayObservables(this.gameObj.child('players').orderByChild('rank'), function(players) {
     var numPlayers = players.length;
     var numFrames = self.frames().length;
+    console.warn('players', players);
     // Add frames
     while (numFrames < numPlayers) {
       var nextRank = numFrames + 1;
@@ -506,12 +517,6 @@ function Players(game) {
     }
   });
 
-  this.rankChange.subscribe(function(changed) {
-    if (changed) {
-      self.movePlayers(changed);
-    }
-  });
-
   // Computed for showing score adjusters
   this.showAdjusters = ko.computed(function() {
     return self.game.state() === State.SCORE && self.game.isHost();
@@ -525,40 +530,50 @@ Players.prototype.buildFrameObj = function(player, rank) {
 };
 
 // Writes new player order to database, only host should do this
-Players.prototype.setRanks = function(optRemoveRank) {
+Players.prototype.setRanks = function() {
+  console.warn('setting ranks');
   var self = this;
   var playerOrder = util.evaluate(this.players);
+  var logUpdate = [];
   playerOrder.sort(function(playerA, playerB) {
     var aPts = playerA.score;
     var bPts = playerB.score;
-    return aPts !== bPts ? bPts - aPts : playerA.rankTime - playerB.rankTime;
+    return aPts !== bPts ? bPts - aPts : playerA.scoreTime - playerB.scoreTime;
   });
   playerOrder.forEach(function(player, index) {
-    if (index + 1 !== player.rank) {
+    var newRank = index + 1;
+    if (newRank !== player.rank) {
       // Setting new rank in db
       self.gameObj.child('players').child(player.key).update({
-        rank: index + 1,
-        rankTime: Date.now(),
+        rank: newRank,
         info: null // Also nullify info, since players are about to move
+      });
+      logUpdate.push({
+        player: player.key,
+        rank: newRank
       });
     }
   });
-  this.gameObj.child('rankChange').set(optRemoveRank || true).then(function() {
-    self.gameObj.child('rankChange').set(false);
-  });
+  this.gameObj.child('log').push(logUpdate);
 };
 
-Players.prototype.movePlayers = function(optRemoveRank) {
+Players.prototype.movePlayers = function(logUpdates) {
+  console.warn('moving players');
   var self = this;
-  var removeRank = typeof optRemoveRank === "number" ? optRemoveRank : false;
+  var removePlayers = [];
+  logUpdates.forEach(function(update) {
+    if (!update.rank) { removePlayers.push(update.player); }
+  });
+  console.warn('remove players', removePlayers);
   // Get all frames with players walking out
   var activeFrames = this.frames().filter(function(frame) {
     var player = frame.player();
-    if (player.rank !== frame.rank || player.rank === removeRank) {
+    if (player.rank !== frame.rank || util.contains(removePlayers, player.key)) {
       $('.frame_' + frame.rank + ' .sign').addClass('unlifted'); // Hide all signs while players are walking
       return true;
     }
   });
+  console.warn('activeFrames', activeFrames);
   var outCount = 0;
   var getBody = function(frame) { return $('.frame_' + frame.rank + ' .body'); };
   // Make all players walk out
@@ -568,10 +583,12 @@ Players.prototype.movePlayers = function(optRemoveRank) {
     getBody(frame).one('animationend', function() {
       outCount++;
       if (outCount === activeFrames.length) {
-        if (removeRank) {
+        if (removePlayers.length > 0) {
           // Remove the last frame
-          $('.frame_' + self.frames().length).remove();
-          self.frames.pop();
+          for (var i = 0; i < removePlayers.length; i++) {
+            $('.frame_' + self.frames().length).remove();
+            self.frames.pop();
+          }
         }
         walkIn();
       }
@@ -606,11 +623,11 @@ Players.prototype.onClickPlayerMenu = function(frame, event) {
   var player = frame.player();
   var isHost = player.isHost;
   var items = [{
-      title: 'Give point',
+      title: 'Give point (' + player.score + ')',
       icon: 'fa fa-plus',
       fn: function() { return self.adjustScore(player.key, 1); }
     }, {
-      title: 'Take point',
+      title: 'Take point (' + player.score + ')',
       icon: 'fa fa-minus',
       fn: function() { return self.adjustScore(player.key, -1); }
     }, {
@@ -655,12 +672,16 @@ Players.prototype.setSleeping = function(playerKey, bool) {
 // Adjusts a players score by amt
 Players.prototype.adjustScore = function(key, amt) {
   var self = this;
-  this.gameObj.child('players').child(key).child('score')
+  var playerRef = this.gameObj.child('players').child(key);
+  playerRef.child('score')
   .transaction(function(currScore) {
       return currScore + amt;
   }, function(err, committed, snapshot) {
     if (!committed) return;
-    self.setRanks();
+    playerRef.child('scoreTime').set(Date.now())
+    .then(function() {
+      self.setRanks();
+    });
   });
 };
 
@@ -677,20 +698,29 @@ Players.prototype.sleepAlert = function() {
 // Host only
 Players.prototype.onSetScores = function() {
   var self = this;
+  var transactions = [];
   this.frames().forEach(function(frame) {
     var adj = frame.scoreAdjustment();
     var key = frame.player().key;
-    var scoreRef = self.gameObj.child('players').child(key).child('score');
-    scoreRef.once('value', function(snapshot) { return scoreRef.set(snapshot.val() + adj); });
-    frame.scoreAdjustment(0); // Reset to 0 for next round
+    var playerRef = self.gameObj.child('players').child(key);
+    transactions.push(playerRef.transaction(function(currScore) {
+      return currScore + adj;
+    }, function(err, committed, snapshot) {
+      if (committed) {
+        playerRef.child('scoreTime').set(Date.now());
+        frame.scoreAdjustment(0); // Reset to 0 for next round
+      }
+    }));
   });
-  this.gameObj.child('state').set(State.RECAP);
-  this.setRanks();
-  // Show updated scores
-  this.players().forEach(function(player) {
-    var playerObj = self.gameObj.child('players').child(player().key);
-    playerObj.child('score').once('value', function(score) {
-      playerObj.child('info').set(score.val().toString());
+  Promise.all(transactions).then(function() {
+    self.gameObj.child('state').set(State.RECAP);
+    self.setRanks();
+    // Show updated scores
+    self.players().forEach(function(player) {
+      var playerObj = self.gameObj.child('players').child(player().key);
+      playerObj.child('score').once('value', function(score) {
+        playerObj.child('info').set(score.val().toString());
+      });
     });
   });
 };
@@ -706,13 +736,13 @@ function Frame(rank, type, obsPlayer) {
 
 module.exports = Players;
 
-},{"./State.js":6,"./koFire.js":8,"./util.js":11,"basiccontext":9}],4:[function(require,module,exports){
+},{"./State.js":6,"./koFire.js":8,"./util.js":9,"basiccontext":10}],4:[function(require,module,exports){
 
 var ko = require('./koFire.js');
 var State = require('./State.js');
 var util = require('./util.js');
 
-var DURATION = 3000;
+var DURATION = 10000;
 
 // Handles creation of the list of questions and the poll process
 function Poll(game) {
@@ -956,7 +986,7 @@ Spinner.randomSequence = function() {
 
 module.exports = Poll;
 
-},{"./State.js":6,"./koFire.js":8,"./util.js":11}],5:[function(require,module,exports){
+},{"./State.js":6,"./koFire.js":8,"./util.js":9}],5:[function(require,module,exports){
 
 var ko = require('./koFire.js');
 var State = require('./State.js');
@@ -983,7 +1013,7 @@ Responses.prototype.checkIfAllIn = function(optResponses) {
 
 module.exports = Responses;
 
-},{"./State.js":6,"./koFire.js":8,"./util.js":11}],6:[function(require,module,exports){
+},{"./State.js":6,"./koFire.js":8,"./util.js":9}],6:[function(require,module,exports){
 
 State = {
   JOIN:     1,
@@ -1002,15 +1032,35 @@ module.exports = State;
 var App = require('./App.js');
 var ko = require('knockout');
 
-// - Test with Safari and Firefox and Mobile
-// - Get more questions and filter out bad ones
+// Bugs:
+// - Moving players not robust to multiple rank changes
+// - Animations keyframes freeze on Safari
+// - Leaving game as host sometimes does not fully remove that game
+// - Pressing submit player name button multiple times before it loads adds player multiple times
+// - (Suspected) Refreshes may cause unwanted changes to Firebase players list/count
+
+// TODO:
+// - Disable emojis in responses
+// - Use cookies (in addition to URL) to remember game and player
+// - Add indicators to show who had responded
+// - Allow rejoining as a certain player (ping current players to see who is inactive?)
+// - Test action sequences (removals, rank changes, state changes) during disconnect then reconnect
+// - Test on iOS
+
+// CSS Ideas:
+// - Change css to dark grey background, color frame background and white characters
+//  (all round, simpler banner (floating ends))
+// - Show preview of circle and character when choosing color and name
+// - Make responses have background color lighter than background, line spacing between background bars.
+//  Rotate background bars (slightly and independently of eachother)
+// - Faster walking
 
 $(function() {
   window.app = new App();
   ko.applyBindings(window.app);
 });
 
-},{"./App.js":1,"knockout":10}],8:[function(require,module,exports){
+},{"./App.js":1,"knockout":11}],8:[function(require,module,exports){
 
 var ko = require('knockout');
 var util = require('./util.js');
@@ -1147,9 +1197,133 @@ var util = require('./util.js');
 
 module.exports = ko;
 
-},{"./util.js":11,"knockout":10}],9:[function(require,module,exports){
-"use strict";!function(n,t){"undefined"!=typeof module&&module.exports?module.exports=t():"function"==typeof define&&define.amd?define(t):window[n]=t()}("basicContext",function(){var n=null,t="item",e="separator",i=function(){var n=arguments.length<=0||void 0===arguments[0]?"":arguments[0];return document.querySelector(".basicContext "+n)},l=function(){var n=arguments.length<=0||void 0===arguments[0]?{}:arguments[0],i=0===Object.keys(n).length?!0:!1;return i===!0&&(n.type=e),null==n.type&&(n.type=t),null==n["class"]&&(n["class"]=""),n.visible!==!1&&(n.visible=!0),null==n.icon&&(n.icon=null),null==n.title&&(n.title="Undefined"),n.disabled!==!0&&(n.disabled=!1),n.disabled===!0&&(n["class"]+=" basicContext__item--disabled"),null==n.fn&&n.type!==e&&n.disabled===!1?(console.warn("Missing fn for item '"+n.title+"'"),!1):!0},o=function(n,i){var o="",r="";return l(n)===!1?"":n.visible===!1?"":(n.num=i,null!==n.icon&&(r="<span class='basicContext__icon "+n.icon+"'></span>"),n.type===t?o="\n		       <tr class='basicContext__item "+n["class"]+"'>\n		           <td class='basicContext__data' data-num='"+n.num+"'>"+r+n.title+"</td>\n		       </tr>\n		       ":n.type===e&&(o="\n		       <tr class='basicContext__item basicContext__item--separator'></tr>\n		       "),o)},r=function(n){var t="";return t+="\n	        <div class='basicContextContainer'>\n	            <div class='basicContext'>\n	                <table>\n	                    <tbody>\n	        ",n.forEach(function(n,e){return t+=o(n,e)}),t+="\n	                    </tbody>\n	                </table>\n	            </div>\n	        </div>\n	        "},a=function(){var n=arguments.length<=0||void 0===arguments[0]?{}:arguments[0],t={x:n.clientX,y:n.clientY};if("touchend"===n.type&&(null==t.x||null==t.y)){var e=n.changedTouches;null!=e&&e.length>0&&(t.x=e[0].clientX,t.y=e[0].clientY)}return(null==t.x||t.x<0)&&(t.x=0),(null==t.y||t.y<0)&&(t.y=0),t},s=function(n,t){var e=a(n),i=e.x,l=e.y,o={width:window.innerWidth,height:window.innerHeight},r={width:t.offsetWidth,height:t.offsetHeight};i+r.width>o.width&&(i-=i+r.width-o.width),l+r.height>o.height&&(l-=l+r.height-o.height),r.height>o.height&&(l=0,t.classList.add("basicContext--scrollable"));var s=e.x-i,u=e.y-l;return{x:i,y:l,rx:s,ry:u}},u=function(){var n=arguments.length<=0||void 0===arguments[0]?{}:arguments[0];return null==n.fn?!1:n.visible===!1?!1:n.disabled===!0?!1:(i("td[data-num='"+n.num+"']").onclick=n.fn,i("td[data-num='"+n.num+"']").oncontextmenu=n.fn,!0)},c=function(t,e,l,o){var a=r(t);document.body.insertAdjacentHTML("beforeend",a),null==n&&(n=document.body.style.overflow,document.body.style.overflow="hidden");var c=i(),d=s(e,c);return c.style.left=d.x+"px",c.style.top=d.y+"px",c.style.transformOrigin=d.rx+"px "+d.ry+"px",c.style.opacity=1,null==l&&(l=f),c.parentElement.onclick=l,c.parentElement.oncontextmenu=l,t.forEach(u),"function"==typeof e.preventDefault&&e.preventDefault(),"function"==typeof e.stopPropagation&&e.stopPropagation(),"function"==typeof o&&o(),!0},d=function(){var n=i();return null==n||0===n.length?!1:!0},f=function(){if(d()===!1)return!1;var t=document.querySelector(".basicContextContainer");return t.parentElement.removeChild(t),null!=n&&(document.body.style.overflow=n,n=null),!0};return{ITEM:t,SEPARATOR:e,show:c,visible:d,close:f}});
+},{"./util.js":9,"knockout":11}],9:[function(require,module,exports){
+
+// Binds the value of x to value at location firebase.
+exports.bindVal = function(firebase, x) {
+  firebase.on("value", function(snapshot) { return x = snapshot.val(); });
+};
+
+// Binds the function f to the value at location firebase.
+// Whenever the firebase value changes, f is called with the new value.
+exports.bindFunc = function(firebase, f) {
+  firebase.on("value", function(snapshot) { return f(snapshot.val()); });
+};
+
+// Returns a random element of the array.
+exports.randomPick = function(array) {
+  return array[Math.floor(Math.random()*array.length)];
+};
+
+exports.randomIndex = function(array) {
+  return Math.floor(Math.random() * array.length);
+};
+
+// Returns an array of unique random elements of an array.
+exports.randomPicks = function(array, n) {
+  array = array.slice(); // Clone array so as not to mutate it.
+  var picks = [];
+  for (var i = 0; i < array.length && i < n; i++) {
+    var index = Math.floor(Math.random()*array.length);
+    picks.push(array.splice(index, 1)[0]);
+  }
+  return picks;
+};
+
+// Inserts item into array at a random location.
+// Returns the array for convenience.
+exports.randomInsert = function(array, item) {
+  var spliceIndex = Math.floor((array.length+1)*Math.random());
+  array.splice(spliceIndex, 0, item);
+};
+
+// Object forEach, calls func with (val, key)
+exports.forEach = function(obj, func) {
+  Object.keys(obj).forEach(function(key) { return func(obj[key], key); });
+};
+
+exports.size = function(obj) {
+  return Object.keys(obj).length;
+};
+
+exports.values = function(obj) {
+  return Object.keys(obj).map(function(key) {
+    return obj[key];
+  });
+};
+
+exports.find = function(arr, cond) {
+  for (var i = 0; i < arr.length; i++) {
+    if (cond(arr[i])) {
+      return arr[i];
+    }
+  }
+  return undefined;
+};
+
+exports.findIndex = function(arr, cond) {
+  for (var i = 0; i < arr.length; i++) {
+    if (cond(arr[i])) {
+      return i;
+    }
+  }
+  return -1;
+};
+
+exports.findKey = function(obj, cond) {
+  for (var key in obj) {
+    if (cond(obj[key], key)) {
+      return key;
+    }
+  }
+  return undefined;
+};
+
+exports.contains = function(arr, item) {
+  return arr.indexOf(item) !== -1;
+};
+
+// Counts the number of items in arr that meet cond
+exports.count = function(arr, cond) {
+  var count = 0;
+  for (var i = 0; i < arr.length; i++) {
+    if (cond(arr[i])) {
+      count++;
+    }
+  }
+  return count;
+};
+
+// Evaluates an obsArray of observables
+exports.evaluate = function(obsArray) {
+  return obsArray.peek().map(function(val) { return val(); });
+};
+
+// Options should have the following properties:
+// text - main text content
+// buttonText - button title
+// buttonFunc - button execute function
+// color - color object with color and alt color
+exports.alert = function(options) {
+  console.warn('ALERT');
+  var color = options.color;
+  var dom = "<div class='alert'>" +
+    "<div class='alert_text'>" + options.text + "</div>" +
+    "<button class='alert_button' style='background-color:" + color.alt +
+      ";border-color:" + color.color + ";'>" + options.buttonText + "</button>" +
+  "</div>";
+  $('#game_content').hide();
+  $('body').prepend(dom);
+  $('.alert_button').on('click', function() {
+    $('.alert').remove();
+    $('#game_content').show();
+    options.buttonFunc();
+  });
+};
+
 },{}],10:[function(require,module,exports){
+"use strict";!function(n,t){"undefined"!=typeof module&&module.exports?module.exports=t():"function"==typeof define&&define.amd?define(t):window[n]=t()}("basicContext",function(){var n=null,t="item",e="separator",i=function(){var n=arguments.length<=0||void 0===arguments[0]?"":arguments[0];return document.querySelector(".basicContext "+n)},l=function(){var n=arguments.length<=0||void 0===arguments[0]?{}:arguments[0],i=0===Object.keys(n).length?!0:!1;return i===!0&&(n.type=e),null==n.type&&(n.type=t),null==n["class"]&&(n["class"]=""),n.visible!==!1&&(n.visible=!0),null==n.icon&&(n.icon=null),null==n.title&&(n.title="Undefined"),n.disabled!==!0&&(n.disabled=!1),n.disabled===!0&&(n["class"]+=" basicContext__item--disabled"),null==n.fn&&n.type!==e&&n.disabled===!1?(console.warn("Missing fn for item '"+n.title+"'"),!1):!0},o=function(n,i){var o="",r="";return l(n)===!1?"":n.visible===!1?"":(n.num=i,null!==n.icon&&(r="<span class='basicContext__icon "+n.icon+"'></span>"),n.type===t?o="\n		       <tr class='basicContext__item "+n["class"]+"'>\n		           <td class='basicContext__data' data-num='"+n.num+"'>"+r+n.title+"</td>\n		       </tr>\n		       ":n.type===e&&(o="\n		       <tr class='basicContext__item basicContext__item--separator'></tr>\n		       "),o)},r=function(n){var t="";return t+="\n	        <div class='basicContextContainer'>\n	            <div class='basicContext'>\n	                <table>\n	                    <tbody>\n	        ",n.forEach(function(n,e){return t+=o(n,e)}),t+="\n	                    </tbody>\n	                </table>\n	            </div>\n	        </div>\n	        "},a=function(){var n=arguments.length<=0||void 0===arguments[0]?{}:arguments[0],t={x:n.clientX,y:n.clientY};if("touchend"===n.type&&(null==t.x||null==t.y)){var e=n.changedTouches;null!=e&&e.length>0&&(t.x=e[0].clientX,t.y=e[0].clientY)}return(null==t.x||t.x<0)&&(t.x=0),(null==t.y||t.y<0)&&(t.y=0),t},s=function(n,t){var e=a(n),i=e.x,l=e.y,o={width:window.innerWidth,height:window.innerHeight},r={width:t.offsetWidth,height:t.offsetHeight};i+r.width>o.width&&(i-=i+r.width-o.width),l+r.height>o.height&&(l-=l+r.height-o.height),r.height>o.height&&(l=0,t.classList.add("basicContext--scrollable"));var s=e.x-i,u=e.y-l;return{x:i,y:l,rx:s,ry:u}},u=function(){var n=arguments.length<=0||void 0===arguments[0]?{}:arguments[0];return null==n.fn?!1:n.visible===!1?!1:n.disabled===!0?!1:(i("td[data-num='"+n.num+"']").onclick=n.fn,i("td[data-num='"+n.num+"']").oncontextmenu=n.fn,!0)},c=function(t,e,l,o){var a=r(t);document.body.insertAdjacentHTML("beforeend",a),null==n&&(n=document.body.style.overflow,document.body.style.overflow="hidden");var c=i(),d=s(e,c);return c.style.left=d.x+"px",c.style.top=d.y+"px",c.style.transformOrigin=d.rx+"px "+d.ry+"px",c.style.opacity=1,null==l&&(l=f),c.parentElement.onclick=l,c.parentElement.oncontextmenu=l,t.forEach(u),"function"==typeof e.preventDefault&&e.preventDefault(),"function"==typeof e.stopPropagation&&e.stopPropagation(),"function"==typeof o&&o(),!0},d=function(){var n=i();return null==n||0===n.length?!1:!0},f=function(){if(d()===!1)return!1;var t=document.querySelector(".basicContextContainer");return t.parentElement.removeChild(t),null!=n&&(document.body.style.overflow=n,n=null),!0};return{ITEM:t,SEPARATOR:e,show:c,visible:d,close:f}});
+},{}],11:[function(require,module,exports){
 /*!
  * Knockout JavaScript library v3.4.0
  * (c) Steven Sanderson - http://knockoutjs.com/
@@ -7021,129 +7195,5 @@ ko.exportSymbol('nativeTemplateEngine', ko.nativeTemplateEngine);
 }));
 }());
 })();
-
-},{}],11:[function(require,module,exports){
-
-// Binds the value of x to value at location firebase.
-exports.bindVal = function(firebase, x) {
-  firebase.on("value", function(snapshot) { return x = snapshot.val(); });
-};
-
-// Binds the function f to the value at location firebase.
-// Whenever the firebase value changes, f is called with the new value.
-exports.bindFunc = function(firebase, f) {
-  firebase.on("value", function(snapshot) { return f(snapshot.val()); });
-};
-
-// Returns a random element of the array.
-exports.randomPick = function(array) {
-  return array[Math.floor(Math.random()*array.length)];
-};
-
-exports.randomIndex = function(array) {
-  return Math.floor(Math.random() * array.length);
-};
-
-// Returns an array of unique random elements of an array.
-exports.randomPicks = function(array, n) {
-  array = array.slice(); // Clone array so as not to mutate it.
-  var picks = [];
-  for (var i = 0; i < array.length && i < n; i++) {
-    var index = Math.floor(Math.random()*array.length);
-    picks.push(array.splice(index, 1)[0]);
-  }
-  return picks;
-};
-
-// Inserts item into array at a random location.
-// Returns the array for convenience.
-exports.randomInsert = function(array, item) {
-  var spliceIndex = Math.floor((array.length+1)*Math.random());
-  array.splice(spliceIndex, 0, item);
-};
-
-// Object forEach, calls func with (val, key)
-exports.forEach = function(obj, func) {
-  Object.keys(obj).forEach(function(key) { return func(obj[key], key); });
-};
-
-exports.size = function(obj) {
-  return Object.keys(obj).length;
-};
-
-exports.values = function(obj) {
-  return Object.keys(obj).map(function(key) {
-    return obj[key];
-  });
-};
-
-exports.find = function(arr, cond) {
-  for (var i = 0; i < arr.length; i++) {
-    if (cond(arr[i])) {
-      return arr[i];
-    }
-  }
-  return undefined;
-};
-
-exports.findIndex = function(arr, cond) {
-  for (var i = 0; i < arr.length; i++) {
-    if (cond(arr[i])) {
-      return i;
-    }
-  }
-  return -1;
-};
-
-exports.findKey = function(obj, cond) {
-  for (var key in obj) {
-    if (cond(obj[key], key)) {
-      return key;
-    }
-  }
-  return undefined;
-};
-
-exports.contains = function(arr, item) {
-  return arr.indexOf(item) !== -1;
-};
-
-// Counts the number of items in arr that meet cond
-exports.count = function(arr, cond) {
-  var count = 0;
-  for (var i = 0; i < arr.length; i++) {
-    if (cond(arr[i])) {
-      count++;
-    }
-  }
-  return count;
-};
-
-// Evaluates an obsArray of observables
-exports.evaluate = function(obsArray) {
-  return obsArray.peek().map(function(val) { return val(); });
-};
-
-// Options should have the following properties:
-// text - main text content
-// buttonText - button title
-// buttonFunc - button execute function
-// color - color object with color and alt color
-exports.alert = function(options) {
-  console.warn('ALERT');
-  var color = options.color;
-  var dom = "<div class='alert'>" +
-    "<div class='alert_text'>" + options.text + "</div>" +
-    "<button class='alert_button' style='background-color:" + color.alt +
-      ";border-color:" + color.color + ";'>" + options.buttonText + "</button>" +
-  "</div>";
-  $('#game_content').hide();
-  $('body').prepend(dom);
-  $('.alert_button').on('click', function() {
-    $('.alert').remove();
-    $('#game_content').show();
-    options.buttonFunc();
-  });
-};
 
 },{}]},{},[7]);

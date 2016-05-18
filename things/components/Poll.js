@@ -3,7 +3,7 @@ var ko = require('./koFire.js');
 var State = require('./State.js');
 var util = require('./util.js');
 
-var DURATION = 3000;
+var DURATION = 10000;
 
 // Handles creation of the list of questions and the poll process
 function Poll(game) {

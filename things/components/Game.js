@@ -15,6 +15,8 @@ function Game(app, gameObj, playerObj, isWatching) {
   this.playerObj = playerObj;
   this.isWatching = isWatching;
 
+  this.log = ko.fireArray(this.gameObj.child('log'));
+
   this.gameName = ko.fireObservable(this.gameObj.child('animal'));
   this.playerName = ko.fireObservable(this.playerObj.child('name'), function(name) {
     if (name === null) {
@@ -50,7 +52,7 @@ function Game(app, gameObj, playerObj, isWatching) {
 
   // Set the game and player names before building the dom
   var loadBody = $.Deferred();
-  var domFile = this.isWatching ? 'watch.html' : 'game.html';
+  var domFile = this.isWatching ? 'components/watch.html' : 'components/game.html';
   $(document.body).load(domFile, function() { return loadBody.resolve(); });
   loadBody.promise().then(function() {
     self.players = new Players(self);
@@ -60,6 +62,12 @@ function Game(app, gameObj, playerObj, isWatching) {
     if (self.state() === State.INIT) {
       self.onStateChange(State.INIT);
     }
+    self.log.subscribe(function(logUpdate) {
+      logUpdate.forEach(function(update) {
+        console.warn('update', update);
+        self.players.movePlayers(update.value);
+      });
+    }, null, 'arrayChange');
   });
 
   // Subscription skips initial setting notice
@@ -181,6 +189,10 @@ Game.prototype.removeFromGame = function(playerKey) {
       // Remove player entirely
       // This will not execute until numPlayers transaction succeeds
       self.gameObj.child('players').child(playerKey).remove();
+      self.gameObj.child('log').push([{
+        player: playerKey,
+        rank: null
+      }]);
     });
   }
 };
