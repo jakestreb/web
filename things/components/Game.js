@@ -66,11 +66,13 @@ function Game(app, gameObj, playerObj, isWatching) {
       logUpdate.forEach(function(update) {
         console.warn('update', update);
         if (self.players.isMovingPlayers()) {
+          console.warn('isMoving');
           var unhandled = self.unhandledLog();
           unhandled.push(update.value);
           self.unhandledLog(unhandled);
         }
         else {
+          console.warn('notMoving');
           self.players.movePlayers([update.value]);
         }
       });
@@ -197,7 +199,7 @@ Game.prototype.removeFromGame = function(playerKey) {
     }).then(function() {
       // Remove player entirely
       // This will not execute until numPlayers transaction succeeds
-      self.gameObj.child('players').child(playerKey).remove();
+      self.gameObj.child('players').child(playerKey).child('removed').set(true);
       self.gameObj.child('log').push({
         event: 'removed',
         player: playerKey

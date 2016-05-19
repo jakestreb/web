@@ -16,37 +16,52 @@
 	</head>
 	<body>
 		<div id="login_page">
-			<div id="join_container" class="login_flex_item">
-	    	<div id="active_games" data-bind="foreach: activeGames">
-	    		<div class='active_game' data-bind="text: animal,
-	    			click: $parent.selectGame.bind($parent)"></div>
-	    	</div>
-	    	<div class="button_group">
-					<button id="join" class="big_button" data-bind="enable: selectedGame">Join</button>
-					<button id="watch" class="big_button" data-bind="enable: selectedGame">Watch</button>
-				</div>
+			<div class="title">
+				<div class="title_game">a game</div>
+				<div class="title_of">of</div>
+				<div class="title_things">Things</div>
 			</div>
-			<div id="host_container" class="login_flex_item">
-				<div class="button_group">
-					<button id="host" class="big_button" type="button">Host</button>
+			<div id="join_or_host">
+				<div id="join_container" class="login_flex_item">
+		    	<div id="active_games" data-bind="foreach: activeGames">
+		    		<div class='active_game' data-bind="text: animal,
+		    			click: $parent.selectGame.bind($parent)"></div>
+		    	</div>
+		    	<div class="button_group">
+						<button id="join" class="big_button" data-bind="enable: selectedGame">Join</button>
+						<button id="watch" class="big_button" data-bind="enable: selectedGame">Watch</button>
+					</div>
+				</div>
+				<div id="host_container" class="login_flex_item">
+					<div class="button_group">
+						<button id="host" class="big_button" type="button">Host</button>
+					</div>
 				</div>
 			</div>
 			<div id="name_container">
-				<div id="color_picker" data-bind="foreach: colors">
-					<div class="color_swatch" data-bind="foreach: $data">
-						<div class="color_tile" data-bind="style: { backgroundColor: color }, click: function() { $root.selectedColor($data); }, css: { selected: $root.selectedColor().color === color }">
-							<div class="color_check fa fa-check"></div>
-							<div class="color_label" data-bind="text: color, style: { color: alt }"></div>
+				<div id="player_config">
+					<div id='picker_and_preview'>
+		        <div class='frame_content preview'>
+		          <div class='body preview'>
+		            <div class='head preview' data-bind="style: { backgroundColor: selectedColor() }"></div>
+		            <div class='torso preview' data-bind="style: { backgroundColor: selectedColor() }"></div>
+		          </div>
+		        </div>
+						<div class="color_picker" data-bind="foreach: colors">
+							<div class="color_swatch" data-bind="foreach: $data">
+								<div class="color_tile" data-bind="style: { backgroundColor: $data }, click: function() { $root.selectedColor($data); }, css: { selected: $root.selectedColor() === $data }">
+									<div class="color_check fa fa-check"></div>
+				 				</div>
+							</div>
 						</div>
 					</div>
+					<div class="input_container name">
+						<input id="name" placeholder="Name" maxlength="12" data-bind="enterKey: $root.onSubmitNameButton.bind($root)">
+	        </div>
+					<button id="submit_name" data-bind="click: $root.onSubmitNameButton.bind($root), style: { backgroundColor: selectedColor().alt, borderColor: selectedColor().color }">
+						<span class="fa fa-arrow-right"></span>
+					</button>
 				</div>
-				<div class="input_container name">
-					<input id="name" placeholder="Name" maxlength="12" data-bind="enterKey: $root.onSubmitNameButton.bind($root)">
-          <div class="input_shadow"></div>
-        </div>
-				<button id="submit_name" data-bind="click: $root.onSubmitNameButton.bind($root), style: { backgroundColor: selectedColor().alt, borderColor: selectedColor().color }">
-					<span class="fa fa-arrow-right"></span>
-				</button>
 			</div>
 		</div>
 	</body>

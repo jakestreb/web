@@ -21,7 +21,7 @@ function App() {
 
   this.jsonData = null;
   this.colors = ko.observableArray();
-  this.selectedColor = ko.observable({ "color": "#E74C3C", "alt": "#F76C5C" });
+  this.selectedColor = ko.observable("#EC644B");
 
   this.activeGames = ko.fireArray(this.database);
 
@@ -117,16 +117,10 @@ App.prototype.onHostButton = function() {
     animalIndex = util.randomIndex(animalsToTry);
   }
 
-  var frames = "";
-  for (var i = 0; i < 15; i++) {
-    frames += Math.floor(Math.random() * 9);
-  }
-
   this.foundGame = this.database.push({
     round: 1,
     state: State.JOIN,
     animal: animalsToTry[animalIndex],
-    frames: frames,
     numPlayers: 0,
     numSleeping: 0
   });

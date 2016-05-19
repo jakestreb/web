@@ -1,76 +1,70 @@
 <html>
   <div id="game_content">
     <div id="header">
-      <div id="header_name" data-bind="text: playerName, style: { color: players.color().color }"></div>
-      <div id="header_host" data-bind="text: $root.isHost() ? '(host)' : '', style: { color: players.color().color }"></div>
+      <div id="header_name" data-bind="text: playerName"></div>
+      <div id="header_host" data-bind="text: $root.isHost() ? '(host)' : ''"></div>
       <div id="header_game" data-bind="text: gameName"></div>
-      <div id="settings" class='settings_menu fa fa-cog' data-bind="click: function(context, event) { onClickSettings(event); }"></div>
+      <div id="settings" class='settings_menu fa fa-bars' data-bind="click: function(context, event) { onClickSettings(event); }"></div>
     </div>
-    <div id="questions" class="flexy">
-      <div class="timer" data-bind="visible: poll.allowVoting">
-        <div class="timer_shadow"></div>
-        <pie class="left_half" data-bind="style: { backgroundImage: poll.leftHalfGradient }"></pie>
-        <pie class="slice" data-bind="style: { backgroundImage: poll.sliceGradient }"></pie>
-        <pie class="mask_slice"></pie>
-      </div>
-      <div id="choices" data-bind="foreach: poll.choices">
-        <div class="choice_container" data-bind="click: $parent.poll.onVote.bind($parent.poll), css: label">
-          <div class="choice_label" data-bind="text: label"></div>
-          <div class="choice" data-bind="text: text"></div>
-          <div class="votes"></div>
+    <div id="main_content">
+      <div id="questions" class="flexy">
+        <div class="timer" data-bind="visible: poll.allowVoting">
+          <pie class="left_half"></pie>
+          <pie class="slice"></pie>
+          <pie class="mask_slice"></pie>
+        </div>
+        <div id="things_prompt">Things...</div>
+        <div id="choices" data-bind="foreach: poll.choices">
+          <div class="choice_container" data-bind="click: $parent.poll.onVote.bind($parent.poll), css: label">
+            <div class="choice_label" data-bind="text: label, visible: $root.state() === State.POLL"></div>
+            <div class="choice" data-bind="text: text"></div>
+            <div class="votes"></div>
+          </div>
         </div>
       </div>
-    </div>
-    <div id="prompt_container" class="flexy">
-      <div id="submit_container" data-bind="visible: showSubmitPrompt">
-        <div class="input_container">
-          <input id="response" maxlength="120" data-bind="enterKey: $root.onSubmit.bind($root)"></input>
-          <div class="input_shadow"></div>
+      <div id="guessed_container", data-bind="visible: state() === State.GUESS">
+        <button id="guessed" data-bind="disable: guessed, click: onGuessed()"><span class="fa fa-strikethrough"></span></button>
+        <button id="complete" data-bind="visible: isHost, click: $root.onGuessingComplete.bind($root)"><span class="fa fa-arrow-right"></span></button>
+      </div>
+      <div id="prompt_container" class="flexy" data-bind="visible: state() !== State.GUESS">
+        <div id="submit_container" data-bind="visible: showSubmitPrompt">
+          <div class="input_container">
+            <input id="response" maxlength="120" data-bind="enterKey: $root.onSubmit.bind($root)"></input>
+          </div>
+          <button id="submit" data-bind="click: $root.onSubmit.bind($root)">
+            <span class="fa fa-arrow-right"></span>
+          </button>
         </div>
-        <button id="submit" data-bind="click: $root.onSubmit.bind($root), style: { backgroundColor: players.color().alt, borderColor: players.color().color }">
-          <span class="fa fa-arrow-right"></span>
-        </button>
+        <div id="scoring_container" data-bind="visible: isHost">
+          <button id="set_scores" data-bind="visible: state() === State.SCORE, click: players.onSetScores.bind(players)"><span class="fa fa-floppy-o"></span></button>
+          <button id="next_round" data-bind="visible: state() === State.RECAP, click: $root.onNextRound.bind($root)"><span class="fa fa-arrow-right"></span></button>
+        </div>
       </div>
-      <div id="guessed_container">
-        <button id="guessed" data-bind="visible: state() === State.GUESS, disable: guessed, click: onGuessed(), style: { backgroundColor: players.color().alt, borderColor: players.color().color }"><span class="fa fa-strikethrough"></span></button>
-        <button id="complete" data-bind="visible: showCompleteButton, click: $root.onGuessingComplete.bind($root), style: { backgroundColor: players.color().alt, borderColor: players.color().color }"><span class="fa fa-arrow-right"></span></button>
+      <div id="begin_container" class="flexy" data-bind="visible: showBeginButton">
+        <button id="begin" data-bind="click: $root.onNextRound.bind($root)"><span class="fa fa-play"></span></button>
       </div>
-      <div id="scoring_container" data-bind="visible: isHost">
-        <button id="set_scores" data-bind="visible: state() === State.SCORE, click: players.onSetScores.bind(players), style: { backgroundColor: players.color().alt, borderColor: players.color().color }"><span class="fa fa-floppy-o"></span></button>
-        <button id="next_round" data-bind="visible: state() === State.RECAP, click: $root.onNextRound.bind($root), style: { backgroundColor: players.color().alt, borderColor: players.color().color }"><span class="fa fa-arrow-right"></span></button>
-      </div>
-    </div>
-    <div id="begin_container" data-bind="visible: showBeginButton">
-      <button id="begin" data-bind="click: $root.onNextRound.bind($root), style: { backgroundColor: players.color().alt, borderColor: players.color().color }"><span class="fa fa-play"></span></button>
-    </div>
-    <div id="responses" class="flexy" data-bind="foreach: responses.responses, visible: state() === State.GUESS">
-      <div class='response'>
-        <div class='response_quotes'>
+      <div id="responses" class="flexy" data-bind="foreach: responses.responses, visible: state() === State.GUESS">
+        <div class='response'>
+          <span class='response_quote fa fa-quote-left'></span>
           <div class='response_content' data-bind="text: response, css: { eliminated: eliminated }"></div>
+          <span class='response_quote fa fa-quote-right'></span>
         </div>
       </div>
     </div>
-    <div id="players" class="flexy" data-bind="foreach: players.frames">
+    <div id="main_content_trim"></div>
+    <div id="players" data-bind="foreach: players.frames">
       <div class='frame' data-bind="css: 'frame_' + rank">
-        <div class='player_menu fa fa-cog' data-bind='visible: $root.isHost, click: function(frame, event) { $root.players.onClickPlayerMenu(frame, event); }'></div>
-        <div class='frame_content' data-bind="css: type">
+        <div class='player_menu fa fa-caret-down' data-bind='visible: $root.isHost, click: function(frame, event) { $root.players.onClickPlayerMenu(frame, event); }'></div>
+        <div class='frame_content'>
           <div class='body' data-bind='style: { opacity: player() ? (player().asleep ? "0.2" : "1.0") : "0.0" }, css: moving, visible: !empty()' >
-            <div class='head' data-bind='style: { backgroundColor: player() ? player().color.color : "white" }'></div>
-            <div class='torso' data-bind='style: { backgroundColor: player() ? player().color.color : "white" }'></div>
+            <div class='head' data-bind='style: { backgroundColor: player() ? player().color : "white" }'></div>
+            <div class='torso' data-bind='style: { backgroundColor: player() ? player().color : "white" }'></div>
           </div>
           <div class='sign' data-bind='css: player() ? player().signPosition : "", css: { lifted: player() ? player().info : "" }'>
             <div class='sign_content' data-bind='text: player() ? player().info : ""'></div>
           </div>
         </div>
-        <div class='plaque'>
-          <div class='nametag'>
-            <div class='player_name' data-bind='text: player() ? player().name : ""'></div>
-          </div>
-          <div class='banner_left_fold'></div>
-          <div class='banner_left_fringe'></div>
-          <div class='banner_right_fold'></div>
-          <div class='banner_right_fringe'></div>
-        </div>
+        <div class='player_name' data-bind='text: player() ? player().name : ""'></div>
         <div class='score_adjuster' data-bind="visible: $parent.players.showAdjusters">
           <div class='minus' data-bind="click: scoreAdjustment(scoreAdjustment() - 1)">-</div>
           <div class='score_adjustment' data-bind='text: scoreAdjustment()'></div>

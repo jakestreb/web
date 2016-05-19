@@ -17,34 +17,22 @@
 }
 
 .response_content {
+  display: inline-block;
   color: black;
-  padding: 0 25px;
-  border-radius: 3px;
-  border-bottom-right-radius: 0;
+  margin: 0 15px;
+  padding: 0 5px;
   word-wrap: break-word;
+  font-size: 1.4rem;
+  line-height: 2rem;
+  background-color: #F6F6F6;
 }
 
-.response_quotes:before {
-  content: "\201C";
-  position: absolute;
-  left: 0;
-  top: 0;
-  font-size: 2.0rem;
-  line-height: 2.0rem;
-  color: #DDD;
-}
-
-.response_quotes:after {
-  content: "\201D";
-  position: absolute;
-  right: 0;
-  top: 0;
-  font-size: 2.0rem;
-  line-height: 2.0rem;
-  color: #DDD;
+.response_quote {
+  display: inline-block;
+  font-size: 1.5rem;
+  color: #FFB2B2;
 }
 
 .response_content.eliminated {
   text-decoration: line-through;
-  color: #CCCCBB;
 }

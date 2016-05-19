@@ -1,7 +1,7 @@
 <html>
   <div id="game_content">
     <div id="header">
-      <div id="header_name" data-bind="text: playerName, style: { color: players.color().color }"></div>
+      <div id="header_name" data-bind="text: playerName"></div>
       <div id="header_game" data-bind="text: gameName"></div>
     </div>
     <div id="questions" class="flexy">
@@ -28,23 +28,17 @@
     </div>
     <div id="players" class="flexy" data-bind="foreach: players.frames">
       <div class='frame' data-bind="css: 'frame_' + rank">
-        <div class='frame_content' data-bind="css: type">
+        <div class='frame_content'>
           <div class='body' data-bind='style: { opacity: player() ? (player().asleep ? "0.2" : "1.0") : "0.0" }, css: moving, visible: !empty()' >
-            <div class='head' data-bind='style: { backgroundColor: player() ? player().color.color : "white" }'></div>
-            <div class='torso' data-bind='style: { backgroundColor: player() ? player().color.color : "white" }'></div>
+            <div class='head' data-bind='style: { backgroundColor: player() ? player().color : "white" }'></div>
+            <div class='torso' data-bind='style: { backgroundColor: player() ? player().color : "white" }'></div>
           </div>
           <div class='sign' data-bind='css: player() ? player().signPosition : "", css: { lifted: player() ? player().info : "" }'>
             <div class='sign_content' data-bind='text: player() ? player().info : ""'></div>
           </div>
         </div>
-        <div class='plaque'>
-          <div class='nametag'>
-            <div class='player_name' data-bind='text: player() ? player().name : ""'></div>
-          </div>
-          <div class='banner_left_fold'></div>
-          <div class='banner_left_fringe'></div>
-          <div class='banner_right_fold'></div>
-          <div class='banner_right_fringe'></div>
+        <div class='nametag'>
+          <div class='player_name' data-bind='text: player() ? player().name : ""'></div>
         </div>
       </div>
     </div>

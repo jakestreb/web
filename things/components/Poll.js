@@ -3,7 +3,7 @@ var ko = require('./koFire.js');
 var State = require('./State.js');
 var util = require('./util.js');
 
-var DURATION = 10000;
+var DURATION = 8000;
 
 // Handles creation of the list of questions and the poll process
 function Poll(game) {
@@ -17,15 +17,6 @@ function Poll(game) {
   this.choices = ko.fireArray(this.pollObj.child('choices'));
   this.allowVoting = ko.fireObservable(this.pollObj.child('allowVoting'));
   this.votes = ko.fireArray(this.pollObj.child('votes'));
-
-  this.leftHalfGradient = ko.computed(function() {
-    return "linear-gradient(90deg, " + self.game.players.color().color +
-      " 50%, transparent 50%)";
-  });
-  this.sliceGradient = ko.computed(function() {
-    return "linear-gradient(90deg, transparent 50%, " + self.game.players.color().color +
-      " 50%)";
-  });
 
   util.bindFunc(this.pollObj.child('timeout'), this.onTimeoutChange.bind(this));
   util.bindFunc(this.pollObj.child('spinner'), this.onSpinnerUpdate.bind(this));

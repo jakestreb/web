@@ -4,17 +4,11 @@ var basicContext = require('basiccontext');
 var State = require('./State.js');
 var util = require('./util.js');
 
-var NUM_FRAMES = 15; // number of different frames before repeats
-var FRAME_TYPES = ['frame_oval', 'frame_square', 'frame_rect'];
-
 // Handles creation and maintenance of the list of players
 function Players(game) {
   var self = this;
   this.game = game;
   this.gameObj = game.gameObj;
-
-  this.framesString = "";
-  this.gameObj.child('frames').once('value', function(snap) { return self.framesString = snap.val(); });
 
   this.numPlayers = ko.fireObservable(this.gameObj.child('numPlayers'));
   this.numSleeping = ko.fireObservable(this.gameObj.child('numSleeping'));
@@ -37,7 +31,7 @@ function Players(game) {
     while (numFrames < numPlayers) {
       var nextRank = numFrames + 1;
       var player = util.find(players, function(p) { return p.peek().rank === nextRank; });
-      self.frames.push(self.buildFrameObj(player, nextRank));
+      self.frames.push(new Frame(nextRank, player));
       numFrames++;
     }
     // Remove frames & player dom
@@ -73,12 +67,6 @@ function Players(game) {
   });
 }
 
-Players.prototype.buildFrameObj = function(player, rank) {
-  var frameValue = parseInt(this.framesString[(rank - 1) % NUM_FRAMES], 10);
-  var frameType = FRAME_TYPES[Math.floor(frameValue % 3)];
-  return new Frame(rank, frameType, player);
-};
-
 // Writes new player order to database, only host should do this
 Players.prototype.setRanks = function() {
   console.warn('setting ranks');
@@ -108,8 +96,21 @@ Players.prototype.setRanks = function() {
   }
 };
 
+Players.prototype.addFrames = function(logUpdates) {
+  var frames = this.frames();
+};
+
+Players.prototype.removeFrames = function(logUpdates) {
+  var frames = this.frames();
+  this.frames().forEach(function(frame) {
+
+  });
+};
+
+// NOTE: This should be the only location where frame players
 Players.prototype.movePlayers = function(logUpdates) {
   console.warn('moving players');
+  var frames = this.frames();
   this.isMovingPlayers(true);
   var self = this;
   var removePlayers = [];
@@ -117,11 +118,16 @@ Players.prototype.movePlayers = function(logUpdates) {
     console.warn('logUpdate', update);
     if (update.event === 'removed') { removePlayers.push(update.player); }
   });
+  // DEBUG
+  this.frames().forEach(function(frame) {
+    console.warn('frame players', frame.rank, frame.player());
+  });
   console.warn('remove players', removePlayers);
   // Get all frames with players walking out
   var activeFrames = this.frames().filter(function(frame) {
     var player = frame.player();
-    if (player.rank !== frame.rank || util.contains(removePlayers, player.key)) {
+    // TODO: Can't you just check if player doesnt exist to remove?
+    if (util.contains(removePlayers, player.key) || player.rank !== frame.rank) {
       $('.frame_' + frame.rank + ' .sign').addClass('unlifted'); // Hide all signs while players are walking
       return true;
     }
@@ -136,14 +142,15 @@ Players.prototype.movePlayers = function(logUpdates) {
     getBody(frame).one('animationend', function() {
       outCount++;
       if (outCount === activeFrames.length) {
-        if (removePlayers.length > 0) {
-          // Remove the last frame
-          for (var i = 0; i < removePlayers.length; i++) {
-            $('.frame_' + self.frames().length).remove();
-            self.frames.pop();
-          }
-        }
-        if (removePlayers.length === outCount) {
+        // if (removePlayers.length > 0) {
+        //   // Remove the last frame
+        //   for (var i = 0; i < removePlayers.length; i++) {
+        //     $('.frame_' + self.frames().length).remove();
+        //     self.frames.pop();
+        //     // TODO: Should remove frame from active frames too
+        //   }
+        // }
+        if (removePlayers.length === activeFrames.length) {
           checkIfComplete();
         }
         else {
@@ -160,6 +167,7 @@ Players.prototype.movePlayers = function(logUpdates) {
       frame.empty(true);
       frame.moving(undefined);
       var newPlayerIndex = util.findIndex(currentPlayers, function(player) { return player.rank === frame.rank; });
+      // TODO: This check should not be necessary if removal frames are removed from active frames earlier
       if (newPlayerIndex === -1) {
         return;
       }
@@ -182,6 +190,8 @@ Players.prototype.movePlayers = function(logUpdates) {
   };
 
   var checkIfComplete = function() {
+    // TODO: "Unhandled" changes may have already been handled partially if ranks changed during
+    // movement. All movement should occur on update frozen players, then handle new changes afterward.
     var unhandled = self.game.unhandledLog();
     self.game.unhandledLog([]);
     if (unhandled.length > 0) {
@@ -300,9 +310,8 @@ Players.prototype.onSetScores = function() {
   });
 };
 
-function Frame(rank, type, obsPlayer) {
+function Frame(rank, obsPlayer) {
   this.rank = rank;
-  this.type = type;
   this.player = obsPlayer;
   this.scoreAdjustment = ko.observable(0);
   this.empty = ko.observable(false);
