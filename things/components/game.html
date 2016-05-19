@@ -1,12 +1,12 @@
 <html>
   <div id="game_content">
-    <div id="header">
-      <div id="header_name" data-bind="text: playerName"></div>
-      <div id="header_host" data-bind="text: $root.isHost() ? '(host)' : ''"></div>
-      <div id="header_game" data-bind="text: gameName"></div>
-      <div id="settings" class='settings_menu fa fa-bars' data-bind="click: function(context, event) { onClickSettings(event); }"></div>
-    </div>
     <div id="main_content">
+      <div id="header">
+        <div id="header_name" data-bind="text: playerName"></div>
+        <div id="header_host" data-bind="text: $root.isHost() ? '(host)' : ''"></div>
+        <div id="header_game" data-bind="text: gameName"></div>
+        <div id="settings" class='settings_menu fa fa-bars' data-bind="click: function(context, event) { onClickSettings(event); }"></div>
+      </div>
       <div id="questions" class="flexy">
         <div class="timer" data-bind="visible: poll.allowVoting">
           <pie class="left_half"></pie>

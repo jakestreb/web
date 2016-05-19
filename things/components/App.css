@@ -16,6 +16,8 @@ body {
 	font-weight: 300;
 	margin: 0;
 	background-color: #444444;
+	overflow-y: scroll;
+	overflow-x: hidden;
 }
 
 .title {
