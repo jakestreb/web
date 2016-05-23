@@ -16,12 +16,10 @@ body {
 	font-weight: 300;
 	margin: 0;
 	background-color: #444444;
-	overflow-y: scroll;
-	overflow-x: hidden;
 }
 
 .title {
-	display: block;
+	display: none;
 	position: relative;
 	width: 380px;
 	height: 180px;
@@ -132,6 +130,10 @@ body {
   text-align: center;
 }
 
+#submit_name:hover {
+	color: #777;
+}
+
 #picker_and_preview {
 	display: flex;
 	justify-content: space-around;
@@ -143,9 +145,11 @@ body {
 
 .frame_content.preview {
 	width: 120px;
-	height: 120px;
-	border-radius: 60px;
-	margin: auto 15px;
+  height: 120px;
+  border-radius: 60px;
+  margin: auto 15px;
+  position: relative;
+  left: 15%;
 }
 
 .body.preview {

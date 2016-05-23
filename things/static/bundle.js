@@ -1,1089 +1,4 @@
-(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-
-var ko = require('./koFire.js');
-var Game = require('./Game.js');
-var util = require('./util.js');
-
-// Handles log in and creating a game
-function App() {
-  var self = this;
-  this.database = new Firebase('https://thingsgame.firebaseio.com/');
-
-  this.selectedGame = ko.observable(null);
-
-  this.foundGame = null;
-  this.isHost = false;
-
-  this.urlGameKey = null;
-  this.urlPlayerKey = null;
-  this.urlWatcherKey = null;
-
-  this.game = null;
-
-  this.jsonData = null;
-  this.colors = ko.observableArray();
-  this.selectedColor = ko.observable("#EC644B");
-
-  this.activeGames = ko.fireArray(this.database);
-
-  // Load JSON data
-  _loadJSON(function(response) {
-    self.jsonData = JSON.parse(response);
-    self.colors(self.jsonData.colors.map(function(swatch) { return ko.observableArray(swatch); }));
-  });
-
-  this.database.once('value', function(snapshot) { return self.attemptURLConnect(snapshot); });
-
-  // TODO: Use knockout
-  $('#join').on('click', this.onJoinButton.bind(this));
-  $('#host').on('click', this.onHostButton.bind(this));
-  $('#watch').on('click', this.onJoinButton.bind(this, true));
-}
-
-App.prototype.selectGame = function(game, event) {
-  this.selectedGame(game);
-  $('.active_game').removeClass('selected');
-  $(event.target).addClass('selected');
-};
-
-App.prototype.attemptURLConnect = function(snapshot) {
-  var self = this;
-  // Get keys from URL
-  var urlItems = window.location.hash.split("/");
-  urlItems.forEach(function(item) {
-    switch (item.slice(0, 2)) {
-      case "%g":
-        self.urlGameKey = item.slice(2);
-        break;
-      case "%u":
-        self.urlPlayerKey = item.slice(2);
-        break;
-      case "%w":
-        self.urlWatcherKey = item.slice(2);
-        break;
-    }
-  });
-
-  // If URL doesn't contain information, URL connection fails
-  if (!this.urlGameKey) {
-    window.location.hash = ""; // Clears URL suffix
-    return;
-  }
-
-  // Initialize game/player based on URL
-  var games = snapshot.val();
-
-  // Retrieve game if in database, break if not
-  if (!games || !(this.urlGameKey in games)) {
-    window.location.hash = ""; // Clear suffix
-    console.error("Failed to retrieve game");
-    return;
-  }
-  // Game available
-  var gameObj = snapshot.child(this.urlGameKey).ref();
-
-  var players = games[gameObj.key()].players;
-  var watchers = games[gameObj.key()].watchers;
-  if (!this.urlPlayerKey || !players || !(this.urlPlayerKey in players)) {
-    if (!this.urlWatcherKey || !watchers || !(this.urlWatcherKey in watchers)) {
-      window.location.hash = ""; // Clear suffix
-      console.error("Failed to retrieve player");
-      return;
-    }
-    else {
-      // Watcher available
-      var watcherObj = gameObj.child("watchers").child(this.urlWatcherKey);
-      this.game = new Game(this, gameObj, watcherObj, true);
-    }
-  }
-  else {
-    // Player available
-    var playerObj = gameObj.child("players").child(this.urlPlayerKey);
-    this.game = new Game(this, gameObj, playerObj);
-  }
-};
-
-App.prototype.onHostButton = function() {
-  var currentAnimals = [];
-  var animalsToTry = this.jsonData.animals.slice();
-  this.activeGames().forEach(function(game) { return currentAnimals.push(game.animal); });
-
-  // Keep trying to get an animal not currently in use
-  var animalIndex = util.randomIndex(animalsToTry);
-  while (util.contains(currentAnimals, animalsToTry[animalIndex])) {
-    animalsToTry.splice(animalIndex, 1);
-    if (animalsToTry.length === 0) {
-      throw "Too many active games";
-    }
-    animalIndex = util.randomIndex(animalsToTry);
-  }
-
-  this.foundGame = this.database.push({
-    round: 1,
-    state: State.JOIN,
-    animal: animalsToTry[animalIndex],
-    numPlayers: 0,
-    numSleeping: 0
-  });
-  this.isHost = true;
-
-  this.showNamePrompt();
-};
-
-App.prototype.onJoinButton = function(watchOnly) {
-  this.foundGame = this.database.child(this.selectedGame().key);
-  if (watchOnly !== true) {
-    this.showNamePrompt();
-  }
-  else {
-    // Create a player object with arbitrary information to avoid errors
-    var fakePlayerObj = this.foundGame.child("watchers").push({
-      name: 'Watching',
-      isHost: false,
-      score: 0,
-      scoreTime: Date.now(),
-      color: "#E74C3C",
-      signPosition: 'center',
-      rank: 0
-    });
-    window.location.hash = "/%g" + this.foundGame.key() + "/%w" + fakePlayerObj.key();
-    this.game = new Game(this, this.foundGame, fakePlayerObj, true);
-  }
-};
-
-App.prototype.showNamePrompt = function() {
-  $('#join_container').hide();
-  $('#host_container').hide();
-  $('#name_container').show();
-};
-
-App.prototype.onSubmitNameButton = function() {
-  var self = this;
-  var name = $('#name').val();
-  if (name === "") {
-    return;
-  }
-
-  this.foundGame.child('numPlayers').transaction(function(currNumPlayers) {
-    return currNumPlayers + 1;
-  }, function(err, committed, snapshot) {
-    if (!committed) { return; }
-    var playerObj = self.foundGame.child("players").push({
-      name: name,
-      isHost: self.isHost,
-      score: 0,
-      scoreTime: Date.now(),
-      color: self.selectedColor(),
-      signPosition: util.randomPick(['left', 'right', 'center']),
-      rank: snapshot.val(),
-      asleep: false
-    });
-    window.location.hash = "/%g" + self.foundGame.key() + "/%u" + playerObj.key();
-    self.game = new Game(self, self.foundGame, playerObj);
-  });
-};
-
-// Found online, JSON parse function
-function _loadJSON(callback) {
-  var xobj = new XMLHttpRequest();
-  xobj.overrideMimeType("application/json");
-  xobj.open('GET', 'components/data.json', true);
-  xobj.onreadystatechange = function () {
-    if (xobj.readyState == 4 && xobj.status == "200") {
-      // Required use of an anonymous callback as .open will NOT return a value but
-      // simply returns undefined in asynchronous mode
-      callback(xobj.responseText);
-    }
-  };
-  xobj.send(null);
-}
-
-module.exports = App;
-
-},{"./Game.js":2,"./koFire.js":8,"./util.js":9}],2:[function(require,module,exports){
-
-var ko = require('./koFire.js');
-var basicContext = require('basiccontext');
-var Players = require('./Players.js');
-var Responses = require('./Responses.js');
-var Poll = require('./Poll.js');
-var State = require('./State.js');
-var util = require('./util.js');
-
-// Handles preparing the game and moving between states
-function Game(app, gameObj, playerObj, isWatching) {
-  var self = this;
-  this.app = app;
-  this.gameObj = gameObj;
-  this.playerObj = playerObj;
-  this.isWatching = isWatching;
-
-  this.log = ko.fireArray(this.gameObj.child('log'));
-
-  this.gameName = ko.fireObservable(this.gameObj.child('animal'));
-  this.playerName = ko.fireObservable(this.playerObj.child('name'), function(name) {
-    if (name === null) {
-      // You've been removed
-      window.location.hash = "";
-      window.location.reload();
-    }
-  });
-  this.isHost = ko.fireObservable(this.playerObj.child('isHost'));
-
-  this.state = ko.fireObservable(this.gameObj.child('state'));
-  this.round = ko.fireObservable(this.gameObj.child('round'));
-
-  this.question = ko.fireObservable(this.gameObj.child('question'));
-
-  this.guessed = ko.fireObservable(this.playerObj.child('guessed'));
-  this.responded = ko.fireObservable(this.playerObj.child('responded'));
-
-  // Show prompt computeds
-  this.showBeginButton = ko.computed(function() {
-    return self.state() === State.JOIN && self.isHost();
-  });
-  this.showCompleteButton = ko.computed(function() {
-    return self.state() === State.GUESS && self.isHost();
-  });
-  this.showSubmitPrompt = ko.computed(function() {
-    return !self.responded() && self.state() === State.RESPOND;
-  });
-
-  this.players = null;
-  this.responses = null;
-  this.poll = null;
-
-  // Set the game and player names before building the dom
-  var loadBody = $.Deferred();
-  var domFile = this.isWatching ? 'components/watch.html' : 'components/game.html';
-  $(document.body).load(domFile, function() { return loadBody.resolve(); });
-  loadBody.promise().then(function() {
-    self.players = new Players(self);
-    self.responses = new Responses(self);
-    self.poll = new Poll(self);
-    ko.applyBindings(self, $('#game_content').get(0));
-    if (self.state() === State.INIT) {
-      self.onStateChange(State.INIT);
-    }
-    self.log.subscribe(function(logUpdate) {
-      logUpdate.forEach(function(update) {
-        console.warn('update', update);
-        if (self.players.isMovingPlayers()) {
-          console.warn('isMoving');
-          var unhandled = self.unhandledLog();
-          unhandled.push(update.value);
-          self.unhandledLog(unhandled);
-        }
-        else {
-          console.warn('notMoving');
-          self.players.movePlayers([update.value]);
-        }
-      });
-    }, null, 'arrayChange');
-  });
-
-  this.unhandledLog = ko.observable([]);
-
-  // Subscription skips initial setting notice
-  this.state.subscribe(function(newState) {
-    return self.onStateChange(newState);
-  });
-}
-
-Game.prototype.onClickSettings = function(event) {
-  var self = this;
-  var items = [{
-      title: 'Next round',
-      icon: 'fa fa-forward',
-      fn: function() { return self.onNextRound(); },
-      visible: this.isHost()
-    }, {
-      title: 'Sit out this round',
-      icon: 'fa fa-bed',
-      fn: function() { return self.players.setSleeping(self.playerObj.key(), true); },
-      visible: !this.isHost()
-    }, {
-      title: 'Leave game',
-      icon: 'fa fa-sign-out',
-      fn: function() { return self.removeFromGame(self.playerObj.key()); }
-  }];
-  basicContext.show(items, event.originalEvent);
-};
-
-Game.prototype.onStateChange = function(newState) {
-  console.log('state => ' + newState);
-  var self = this;
-
-  switch (newState) {
-    case State.JOIN:
-      break;
-    case State.INIT:
-      this.playerObj.update({
-        guessed: null,
-        responded: null,
-        vote: null,
-        info: null
-      });
-      if (this.isHost()) {
-        this.gameObj.update({
-          state: State.POLL,
-          poll: null,
-          responses: null,
-          question: null,
-        });
-      }
-      break;
-    case State.POLL:
-      this.poll.timer.reset(); // Resets timer dom
-      this.playerObj.update({
-        info: null
-      });
-      if (this.isHost()) {
-        this.poll.pickChoices();
-      }
-      break;
-    case State.RESPOND:
-      // Remove poll data once no longer relevant
-      this.playerObj.update({
-        responded: false,
-        info: null
-      });
-      if (this.isHost()) {
-        this.gameObj.child('poll').update({
-          allowVoting: false,
-          votes: null,
-          spinner: null,
-          timeout: null
-        });
-      }
-      break;
-    case State.GUESS:
-      this.playerObj.update({
-        responded: null,
-        guessed: false
-      });
-      break;
-    case State.SCORE:
-      this.playerObj.child('score').once('value', function(score) {
-        self.playerObj.child('info').set(score.val().toString());
-      });
-      break;
-    case State.RECAP:
-      break;
-  }
-};
-
-Game.prototype.onNextRound = function() {
-  this.gameObj.update({
-    state: State.INIT,
-    round: this.round() + 1,
-  });
-};
-
-Game.prototype.removeFromGame = function(playerKey) {
-  var self = this;
-  if (playerKey === this.playerObj.key() && this.isHost()) {
-    // The host is leaving, game is over
-    this.app.database.child(this.gameObj.key()).set(null);
-  }
-  else {
-    // Wake the player up (in case they were asleep) for accounting and moving purposes
-    this.players.setSleeping(playerKey, false).then(function() {
-      // If the player has responsed, remove response
-      self.responses.responses().forEach(function(response) {
-        if (response.playerKey === playerKey) {
-          self.gameObj.child('responses').child(response.key).remove();
-        }
-      });
-      // Decrement numPlayers
-      return self.gameObj.child('numPlayers').transaction(function(currNumPlayers) {
-        return currNumPlayers - 1;
-      });
-    }).then(function() {
-      // Remove player entirely
-      // This will not execute until numPlayers transaction succeeds
-      self.gameObj.child('players').child(playerKey).child('removed').set(true);
-      self.gameObj.child('log').push({
-        event: 'removed',
-        player: playerKey
-      });
-    });
-  }
-};
-
-Game.prototype.onSubmit = function() {
-  var input = $("#response");
-  if (input.val() === "") {
-    return;
-  }
-  this.playerObj.child('responded').set(true);
-  var res = this.gameObj.child('responses').push({
-    playerKey: this.playerObj.key(),
-    response: input.val(),
-    eliminated: false
-  });
-  this.gameObj.child('responses').child(res.key()).setPriority(Math.random());
-  input.val("");
-};
-
-// If overridePlayerKey is not given, the current player is assumed
-Game.prototype.onGuessed = function(overridePlayerKey) {
-  var self = this;
-  var playerKey = overridePlayerKey || this.playerObj.key();
-  this.gameObj.child('players').child(playerKey).child('guessed').set(true);
-  // Look into responsesInfo, find your response and eliminate it
-  this.responses.responses().forEach(function(response) {
-    if (response().playerKey === playerKey) {
-      self.gameObj.child('responses').child(response().key).child('eliminated').set(true);
-    }
-  });
-};
-
-// Host only
-Game.prototype.onGuessingComplete = function() {
-  this.gameObj.update({
-    state: State.SCORE,
-    responses: null
-  });
-};
-
-module.exports = Game;
-
-},{"./Players.js":3,"./Poll.js":4,"./Responses.js":5,"./State.js":6,"./koFire.js":8,"./util.js":9,"basiccontext":10}],3:[function(require,module,exports){
-
-var ko = require('./koFire.js');
-var basicContext = require('basiccontext');
-var State = require('./State.js');
-var util = require('./util.js');
-
-// Handles creation and maintenance of the list of players
-function Players(game) {
-  var self = this;
-  this.game = game;
-  this.gameObj = game.gameObj;
-
-  this.numPlayers = ko.fireObservable(this.gameObj.child('numPlayers'));
-  this.numSleeping = ko.fireObservable(this.gameObj.child('numSleeping'));
-
-  this.color = ko.fireObservable(this.game.playerObj.child('color'));
-
-  this.isAsleep = ko.fireObservable(this.game.playerObj.child('asleep'), function(sleeping) {
-    if (sleeping) {
-      self.sleepAlert();
-    }
-  });
-
-  // Define frame types observable and create listener to maintain it.
-  this.frames = ko.observableArray();
-
-  this.players = ko.fireArrayObservables(this.gameObj.child('players').orderByChild('rank'), function(players) {
-    var numPlayers = players.length;
-    var numFrames = self.frames().length;
-    // Add frames
-    while (numFrames < numPlayers) {
-      var nextRank = numFrames + 1;
-      var player = util.find(players, function(p) { return p.peek().rank === nextRank; });
-      self.frames.push(new Frame(nextRank, player));
-      numFrames++;
-    }
-    // Remove frames & player dom
-    // while (numFrames > numPlayers) {
-    //   // Find which player is missing
-    //   for (var r = 1; r <= numFrames; r++) {
-    //     if (!util.find(players, function(p) { return p.peek().rank === r; })) {
-    //       // If there is no player with rank r, remove that player DOM
-    //       if (self.game.isHost()) {
-    //         self.setRanks();
-    //       }
-    //       numFrames--;
-    //     }
-    //   }
-    // }
-  });
-
-  this.isMovingPlayers = ko.observable(false);
-
-  this.awakeCount = ko.computed(function() {
-    return self.numPlayers() - self.numSleeping();
-  });
-  // Re-check if responses are all in if awakeCount changes
-  this.awakeCount.subscribe(function(numAwake) {
-    if (self.game.state() === State.RESPOND) {
-      self.game.responses.checkIfAllIn();
-    }
-  });
-
-  // Computed for showing score adjusters
-  this.showAdjusters = ko.computed(function() {
-    return self.game.state() === State.SCORE && self.game.isHost();
-  });
-}
-
-// Writes new player order to database, only host should do this
-Players.prototype.setRanks = function() {
-  console.warn('setting ranks');
-  var self = this;
-  var playerOrder = util.evaluate(this.players);
-  var swap = false;
-  playerOrder.sort(function(playerA, playerB) {
-    var aPts = playerA.score;
-    var bPts = playerB.score;
-    return aPts !== bPts ? bPts - aPts : playerA.scoreTime - playerB.scoreTime;
-  });
-  playerOrder.forEach(function(player, index) {
-    var newRank = index + 1;
-    if (newRank !== player.rank) {
-      // Setting new rank in db
-      self.gameObj.child('players').child(player.key).update({
-        rank: newRank,
-        info: null // Also nullify info, since players are about to move
-      });
-      swap = true;
-    }
-  });
-  if (swap) {
-    this.gameObj.child('log').push({
-      event: 'moved'
-    });
-  }
-};
-
-Players.prototype.addFrames = function(logUpdates) {
-  var frames = this.frames();
-};
-
-Players.prototype.removeFrames = function(logUpdates) {
-  var frames = this.frames();
-  this.frames().forEach(function(frame) {
-
-  });
-};
-
-// NOTE: This should be the only location where frame players
-Players.prototype.movePlayers = function(logUpdates) {
-  console.warn('moving players');
-  var frames = this.frames();
-  this.isMovingPlayers(true);
-  var self = this;
-  var removePlayers = [];
-  logUpdates.forEach(function(update) {
-    console.warn('logUpdate', update);
-    if (update.event === 'removed') { removePlayers.push(update.player); }
-  });
-  // DEBUG
-  this.frames().forEach(function(frame) {
-    console.warn('frame players', frame.rank, frame.player());
-  });
-  console.warn('remove players', removePlayers);
-  // Get all frames with players walking out
-  var activeFrames = this.frames().filter(function(frame) {
-    var player = frame.player();
-    // TODO: Can't you just check if player doesnt exist to remove?
-    if (util.contains(removePlayers, player.key) || player.rank !== frame.rank) {
-      $('.frame_' + frame.rank + ' .sign').addClass('unlifted'); // Hide all signs while players are walking
-      return true;
-    }
-  });
-  console.warn('activeFrames', activeFrames);
-  var outCount = 0;
-  var getBody = function(frame) { return $('.frame_' + frame.rank + ' .body'); };
-  // Make all players walk out
-  activeFrames.forEach(function(frame) {
-    var player = frame.player();
-    frame.moving(player.rank < frame.rank ? 'left_out' : 'right_out');
-    getBody(frame).one('animationend', function() {
-      outCount++;
-      if (outCount === activeFrames.length) {
-        // if (removePlayers.length > 0) {
-        //   // Remove the last frame
-        //   for (var i = 0; i < removePlayers.length; i++) {
-        //     $('.frame_' + self.frames().length).remove();
-        //     self.frames.pop();
-        //     // TODO: Should remove frame from active frames too
-        //   }
-        // }
-        if (removePlayers.length === activeFrames.length) {
-          checkIfComplete();
-        }
-        else {
-          walkIn();
-        }
-      }
-    });
-  });
-  // Called once all players have walked out
-  var walkIn = function() {
-    var completedCount = 0;
-    var currentPlayers = util.evaluate(self.players);
-    activeFrames.forEach(function(frame) {
-      frame.empty(true);
-      frame.moving(undefined);
-      var newPlayerIndex = util.findIndex(currentPlayers, function(player) { return player.rank === frame.rank; });
-      // TODO: This check should not be necessary if removal frames are removed from active frames earlier
-      if (newPlayerIndex === -1) {
-        return;
-      }
-      // TODO: Updates received during movement are ignored
-      frame.player(currentPlayers[newPlayerIndex]);
-      setTimeout(function() {
-        frame.empty(false);
-        frame.moving(newPlayerIndex + 1 < frame.rank ? 'left_in' : 'right_in');
-        getBody(frame).one('animationend', function() {
-          frame.moving(undefined);
-          $('.frame_' + frame.rank + ' .sign').removeClass('unlifted');
-          completedCount++;
-          if (completedCount === activeFrames.length) {
-            // All animations complete
-            checkIfComplete();
-          }
-        });
-      }, 500);
-    });
-  };
-
-  var checkIfComplete = function() {
-    // TODO: "Unhandled" changes may have already been handled partially if ranks changed during
-    // movement. All movement should occur on update frozen players, then handle new changes afterward.
-    var unhandled = self.game.unhandledLog();
-    self.game.unhandledLog([]);
-    if (unhandled.length > 0) {
-      self.movePlayers(unhandled);
-    }
-    else {
-      self.isMovingPlayers(false);
-    }
-  };
-};
-
-Players.prototype.onClickPlayerMenu = function(frame, event) {
-  var self = this;
-  var player = frame.player();
-  var isHost = player.isHost;
-  var items = [{
-      title: 'Give point (' + player.score + ')',
-      icon: 'fa fa-plus',
-      fn: function() { return self.adjustScore(player.key, 1); }
-    }, {
-      title: 'Take point (' + player.score + ')',
-      icon: 'fa fa-minus',
-      fn: function() { return self.adjustScore(player.key, -1); }
-    }, {
-    }, {
-      title: 'Mark response guessed',
-      icon: 'fa fa-quote-left',
-      visible: !isHost && this.game.state() === State.GUESS,
-      disabled: player.guessed,
-      fn: function() { return self.game.onGuessed(player.key); }
-    }, {
-      title: 'Sit out this round',
-      icon: 'fa fa-bed',
-      visible: !isHost,
-      disabled: player.asleep,
-      fn: function() { return self.setSleeping(player.key, true); }
-    }, {
-      title: 'Remove player',
-      icon: 'fa fa-ban',
-      visible: !isHost,
-      fn: function() { return self.game.removeFromGame(player.key); }
-  }];
-  basicContext.show(items, event.originalEvent);
-};
-
-// Sets the status of the player sleeping to bool
-Players.prototype.setSleeping = function(playerKey, bool) {
-  var self = this;
-  // Sets player to sleeping and increments numSleeping
-  var playerObj = this.gameObj.child('players').child(playerKey);
-  return playerObj.child('asleep').transaction(function(sleeping) {
-    return sleeping === bool ? undefined : bool;
-  }, function(error, committed, snapshot) {
-    if (committed) {
-      // Only update numSleeping if asleep value changed
-      return self.gameObj.child('numSleeping').transaction(function(numSleeping) {
-        return numSleeping + (bool ? 1 : -1);
-      });
-    }
-  });
-};
-
-// Adjusts a players score by amt
-Players.prototype.adjustScore = function(key, amt) {
-  var self = this;
-  var playerRef = this.gameObj.child('players').child(key);
-  playerRef.child('score')
-  .transaction(function(currScore) {
-      return currScore + amt;
-  }, function(err, committed, snapshot) {
-    if (!committed) return;
-    playerRef.child('scoreTime').set(Date.now())
-    .then(function() {
-      self.setRanks();
-    });
-  });
-};
-
-Players.prototype.sleepAlert = function() {
-  var self = this;
-  util.alert({
-    text: "You're on break",
-    buttonText: "Back to the game",
-    buttonFunc: function() { return self.setSleeping(self.game.playerObj.key(), false); },
-    color: this.color()
-  });
-};
-
-// Host only
-Players.prototype.onSetScores = function() {
-  var self = this;
-  var transactions = [];
-  this.frames().forEach(function(frame) {
-    var adj = frame.scoreAdjustment();
-    var key = frame.player().key;
-    var playerRef = self.gameObj.child('players').child(key);
-    transactions.push(playerRef.transaction(function(currScore) {
-      return currScore + adj;
-    }, function(err, committed, snapshot) {
-      if (committed) {
-        playerRef.child('scoreTime').set(Date.now());
-        frame.scoreAdjustment(0); // Reset to 0 for next round
-      }
-    }));
-  });
-  Promise.all(transactions).then(function() {
-    self.gameObj.child('state').set(State.RECAP);
-    self.setRanks();
-    // Show updated scores
-    self.players().forEach(function(player) {
-      var playerObj = self.gameObj.child('players').child(player().key);
-      playerObj.child('score').once('value', function(score) {
-        playerObj.child('info').set(score.val().toString());
-      });
-    });
-  });
-};
-
-function Frame(rank, obsPlayer) {
-  this.rank = rank;
-  this.player = obsPlayer;
-  this.scoreAdjustment = ko.observable(0);
-  this.empty = ko.observable(false);
-  this.moving = ko.observable(undefined);
-}
-
-module.exports = Players;
-
-},{"./State.js":6,"./koFire.js":8,"./util.js":9,"basiccontext":10}],4:[function(require,module,exports){
-
-var ko = require('./koFire.js');
-var State = require('./State.js');
-var util = require('./util.js');
-
-var DURATION = 8000;
-
-// Handles creation of the list of questions and the poll process
-function Poll(game) {
-  var self = this;
-  this.game = game;
-  this.timer = new Timer();
-  this.spinner = new Spinner();
-
-  this.pollObj = this.game.gameObj.child('poll');
-
-  this.choices = ko.fireArray(this.pollObj.child('choices'));
-  this.allowVoting = ko.fireObservable(this.pollObj.child('allowVoting'));
-  this.votes = ko.fireArray(this.pollObj.child('votes'));
-
-  util.bindFunc(this.pollObj.child('timeout'), this.onTimeoutChange.bind(this));
-  util.bindFunc(this.pollObj.child('spinner'), this.onSpinnerUpdate.bind(this));
-
-  this.votes.subscribe(this.onVotesUpdate.bind(this));
-}
-
-Poll.prototype.pickChoices = function() {
-  var allQuestions = this.game.app.jsonData.questions;
-  var picks = util.randomPicks(allQuestions, 3);
-  var labels = ['A', 'B', 'C'];
-  for (var i = 0; i < 3; i++) {
-    this.pollObj.child('choices').push({
-      label: labels[i], text: picks[i]
-    });
-  }
-  this.pollObj.update({
-    allowVoting: true,
-    timeout: 'ready'
-  });
-};
-
-Poll.prototype.onVotesUpdate = function(votes) {
-  var numVoters = votes.length;
-
-  // If someone voted, and it isn't already set, set the timeout.
-  if (numVoters > 0) {
-    this.pollObj.child('timeout').transaction(function(currTimeout) {
-      return currTimeout === 'ready' ? Date.now() + DURATION : undefined;
-    });
-  }
-  // If everyone voted, pick question and change state to respond.
-  if (numVoters === this.game.players.awakeCount()) {
-    this.timer.stop();
-  }
-};
-
-Poll.prototype.onTimeoutChange = function(timeout) {
-  var self = this;
-  if (typeof timeout === 'number') {
-    this.timer.start(timeout, function() {
-      if (self.game.isHost()) {
-        self.pickWinner();
-      }
-    });
-  }
-};
-
-Poll.prototype.onVote = function(choice) {
-  var self = this;
-  var alreadyVoted = util.find(this.votes(), function(vote) {
-    return vote.playerKey === self.game.playerObj.key();
-  });
-  if (alreadyVoted || this.game.state() !== State.POLL) return;
-  this.pollObj.child('votes').push({
-    name: this.game.playerName(),
-    playerKey: this.game.playerObj.key(),
-    vote: choice.label
-  });
-  this.game.playerObj.update({
-    vote: choice.label,
-    info: choice.label
-  });
-};
-
-// Only called by host
-Poll.prototype.pickWinner = function() {
-  var count = { A: 0, B: 0, C: 0 };
-  this.votes().forEach(function(voteData) { return count[voteData.vote]++; });
-  var maxVotes = Math.max.apply(null, util.values(count));
-  var finalists = Object.keys(count).filter(function(choice) {
-    return count[choice] === maxVotes;
-  });
-  if (finalists.length > 1) {
-    this.pollObj.child('spinner').update({
-      choices: finalists.join(''),
-      sequence: Spinner.randomSequence(),
-      startIndex: Math.floor(Math.random() * finalists.length)
-    });
-  }
-  else {
-    this.submitWinner(finalists[0]);
-  }
-};
-
-Poll.prototype.onSpinnerUpdate = function(spinObj) {
-  var self = this;
-  if (spinObj && spinObj.sequence) {
-    this.spinner.start(spinObj.choices, spinObj.sequence, spinObj.startIndex, function(item) {
-      if (self.game.isHost()) {
-        self.submitWinner(item);
-      }
-    });
-  }
-};
-
-// Only called by host
-Poll.prototype.submitWinner = function(winner) {
-  var self = this;
-  // Remove all choices except winner
-  var removalKeys = [];
-  this.choices().forEach(function(choice) {
-    if (choice.label !== winner) removalKeys.push(choice.key);
-  });
-  removalKeys.forEach(function(key) { return self.pollObj.child('choices').child(key).remove(); });
-  this.game.gameObj.update({
-    question: winner,
-    state: State.RESPOND
-  });
-};
-
-// A simple countdown timer
-function Timer() {
-  this.intervalId = null;
-  this.isRunning = false;
-  this.stopCallback = function() {};
-}
-
-Timer.prototype.reset = function() {
-  $('.slice').show();
-  $('.slice').css('transform', 'rotate(0deg)');
-  $('.mask_slice').hide();
-};
-
-Timer.prototype.start = function(timeout, stopCallback) {
-  if (this.isRunning) {
-    return;
-  }
-  this.isRunning = true;
-  this.stopCallback = stopCallback;
-  this.intervalId = window.setInterval(this.buildDom.bind(this), 10, timeout);
-};
-
-Timer.prototype.buildDom = function(timeout) {
-  var timeLeft = timeout - Date.now();
-  var half = DURATION / 2;
-  var frac;
-  var deg;
-  if (timeLeft > half) {
-    $('.mask_slice').hide();
-    $('.slice').show();
-    // Slice goes 90deg -> 270deg
-    frac = 1 - ((timeLeft - half) / half);
-    deg = (frac * 180);
-    $('.slice').css('transform', 'rotate(' + deg + 'deg)');
-  }
-  else if (timeLeft <= half && timeLeft > 0) {
-    $('.slice').hide();
-    $('.mask_slice').show();
-    frac = 1 - (timeLeft / half);
-    deg = (frac * 180);
-    $('.mask_slice').css('transform', 'rotate(' + deg + 'deg)');
-  }
-  else {
-    this.stop();
-  }
-};
-
-Timer.prototype.stop = function() {
-  window.clearInterval(this.intervalId);
-  this.isRunning = false;
-  this.stopCallback();
-};
-
-// A random selection spinner
-function Spinner() {
-  this.intervalId = null;
-  this.isRunning = false;
-  this.stopCallback = function() {};
-}
-
-Spinner.prototype.start = function(choices, seq, startIndex, stopCallback) {
-  if (this.isRunning) {
-    return;
-  }
-  this.isRunning = true;
-  this.stopCallback = stopCallback;
-  this.intervalId = window.setInterval(
-    this.buildDom.bind(this), 10, choices, seq, startIndex
-  );
-};
-
-Spinner.prototype.buildDom = function(choices, seq, startIndex) {
-  var now = Date.now();
-  for (var i = 0; i < seq.length - 1; i++) {
-    if (now >= seq[i] && now < seq[i + 1]) {
-      var pick = choices[(startIndex + i) % choices.length];
-      $('.choice_container').removeClass('selected');
-      $('.' + pick).addClass('selected');
-      return;
-    }
-  }
-  if (now >= seq[seq.length - 1]) {
-    this.stop(choices[(startIndex + seq.length - 2) % choices.length]);
-  }
-};
-
-Spinner.prototype.stop = function(winner) {
-  window.clearInterval(this.intervalId);
-  this.isRunning = false;
-  $('.choice_container').removeClass('selected');
-  this.stopCallback(winner);
-};
-
-// Generates a random sequence that is delayed over time
-Spinner.randomSequence = function() {
-  // Sequences of time values on which to change selection
-  var seq = [];
-  var time = Date.now();
-  var delay = 50;
-  while (delay < 800 + (Math.random() * 100)) {
-    seq.push(time);
-    time += delay;
-    delay *= 1.2 + (Math.random() * 0.05);
-  }
-  seq.push(time);
-  return seq;
-};
-
-module.exports = Poll;
-
-},{"./State.js":6,"./koFire.js":8,"./util.js":9}],5:[function(require,module,exports){
-
-var ko = require('./koFire.js');
-var State = require('./State.js');
-var util = require('./util.js');
-
-// Handles creation and crossing out of the list of responses
-function Responses(game) {
-  var self = this;
-  this.game = game;
-
-  var responsesRef = this.game.gameObj.child('responses');
-  this.responses = ko.fireArrayObservables(responsesRef, function(newVal) {
-    self.checkIfAllIn(newVal);
-  });
-}
-
-// If optResponses is given, use instead of reading observable again
-Responses.prototype.checkIfAllIn = function(optResponses) {
-  var responses = optResponses || this.responses();
-  if (responses.length === this.game.players.awakeCount()) {
-    this.game.gameObj.child('state').set(State.GUESS);
-  }
-};
-
-module.exports = Responses;
-
-},{"./State.js":6,"./koFire.js":8,"./util.js":9}],6:[function(require,module,exports){
-
-State = {
-  JOIN:     1,
-  INIT:     2,
-  POLL:     3,
-  RESPOND:  4,
-  GUESS:    5,
-  SCORE:    6,
-  RECAP:    7
-};
-
-module.exports = State;
-
-},{}],7:[function(require,module,exports){
-
-var App = require('./App.js');
-var ko = require('knockout');
-
-// Bugs:
-// - Moving players not robust to multiple rank changes/removals
-// - Animations keyframes freeze on Safari
-// - Leaving game as host sometimes does not fully remove that game
-// - Pressing submit player name button multiple times before it loads adds player multiple times
-// - (Suspected) Hosting game but having another player enter before you could be problematic
-// - (Suspected) Refreshes may cause unwanted changes to Firebase players list/count
-
-// TODO:
-// - Disable emojis in responses
-// - Use cookies (in addition to URL) to remember game and player
-// - Add indicators to show who had responded
-// - Test action sequences (removals, rank changes, state changes) during disconnect then reconnect
-// - Test on iOS
-
-// CSS Ideas:
-// - Adding/removing frames grows/shrinks circle from nothing, other frames slide away
-// - Smooth animations
-
-$(function() {
-  window.app = new App();
-  ko.applyBindings(window.app);
-});
-
-},{"./App.js":1,"knockout":11}],8:[function(require,module,exports){
+require=(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({7:[function(require,module,exports){
 
 var ko = require('knockout');
 var util = require('./util.js');
@@ -1220,133 +135,7 @@ var util = require('./util.js');
 
 module.exports = ko;
 
-},{"./util.js":9,"knockout":11}],9:[function(require,module,exports){
-
-// Binds the value of x to value at location firebase.
-exports.bindVal = function(firebase, x) {
-  firebase.on("value", function(snapshot) { return x = snapshot.val(); });
-};
-
-// Binds the function f to the value at location firebase.
-// Whenever the firebase value changes, f is called with the new value.
-exports.bindFunc = function(firebase, f) {
-  firebase.on("value", function(snapshot) { return f(snapshot.val()); });
-};
-
-// Returns a random element of the array.
-exports.randomPick = function(array) {
-  return array[Math.floor(Math.random()*array.length)];
-};
-
-exports.randomIndex = function(array) {
-  return Math.floor(Math.random() * array.length);
-};
-
-// Returns an array of unique random elements of an array.
-exports.randomPicks = function(array, n) {
-  array = array.slice(); // Clone array so as not to mutate it.
-  var picks = [];
-  for (var i = 0; i < array.length && i < n; i++) {
-    var index = Math.floor(Math.random()*array.length);
-    picks.push(array.splice(index, 1)[0]);
-  }
-  return picks;
-};
-
-// Inserts item into array at a random location.
-// Returns the array for convenience.
-exports.randomInsert = function(array, item) {
-  var spliceIndex = Math.floor((array.length+1)*Math.random());
-  array.splice(spliceIndex, 0, item);
-};
-
-// Object forEach, calls func with (val, key)
-exports.forEach = function(obj, func) {
-  Object.keys(obj).forEach(function(key) { return func(obj[key], key); });
-};
-
-exports.size = function(obj) {
-  return Object.keys(obj).length;
-};
-
-exports.values = function(obj) {
-  return Object.keys(obj).map(function(key) {
-    return obj[key];
-  });
-};
-
-exports.find = function(arr, cond) {
-  for (var i = 0; i < arr.length; i++) {
-    if (cond(arr[i])) {
-      return arr[i];
-    }
-  }
-  return undefined;
-};
-
-exports.findIndex = function(arr, cond) {
-  for (var i = 0; i < arr.length; i++) {
-    if (cond(arr[i])) {
-      return i;
-    }
-  }
-  return -1;
-};
-
-exports.findKey = function(obj, cond) {
-  for (var key in obj) {
-    if (cond(obj[key], key)) {
-      return key;
-    }
-  }
-  return undefined;
-};
-
-exports.contains = function(arr, item) {
-  return arr.indexOf(item) !== -1;
-};
-
-// Counts the number of items in arr that meet cond
-exports.count = function(arr, cond) {
-  var count = 0;
-  for (var i = 0; i < arr.length; i++) {
-    if (cond(arr[i])) {
-      count++;
-    }
-  }
-  return count;
-};
-
-// Evaluates an obsArray of observables
-exports.evaluate = function(obsArray) {
-  return obsArray.peek().map(function(val) { return val(); });
-};
-
-// Options should have the following properties:
-// text - main text content
-// buttonText - button title
-// buttonFunc - button execute function
-// color - color object with color and alt color
-exports.alert = function(options) {
-  console.warn('ALERT');
-  var color = options.color;
-  var dom = "<div class='alert'>" +
-    "<div class='alert_text'>" + options.text + "</div>" +
-    "<button class='alert_button' style='background-color:" + color.alt +
-      ";border-color:" + color.color + ";'>" + options.buttonText + "</button>" +
-  "</div>";
-  $('#game_content').hide();
-  $('body').prepend(dom);
-  $('.alert_button').on('click', function() {
-    $('.alert').remove();
-    $('#game_content').show();
-    options.buttonFunc();
-  });
-};
-
-},{}],10:[function(require,module,exports){
-"use strict";!function(n,t){"undefined"!=typeof module&&module.exports?module.exports=t():"function"==typeof define&&define.amd?define(t):window[n]=t()}("basicContext",function(){var n=null,t="item",e="separator",i=function(){var n=arguments.length<=0||void 0===arguments[0]?"":arguments[0];return document.querySelector(".basicContext "+n)},l=function(){var n=arguments.length<=0||void 0===arguments[0]?{}:arguments[0],i=0===Object.keys(n).length?!0:!1;return i===!0&&(n.type=e),null==n.type&&(n.type=t),null==n["class"]&&(n["class"]=""),n.visible!==!1&&(n.visible=!0),null==n.icon&&(n.icon=null),null==n.title&&(n.title="Undefined"),n.disabled!==!0&&(n.disabled=!1),n.disabled===!0&&(n["class"]+=" basicContext__item--disabled"),null==n.fn&&n.type!==e&&n.disabled===!1?(console.warn("Missing fn for item '"+n.title+"'"),!1):!0},o=function(n,i){var o="",r="";return l(n)===!1?"":n.visible===!1?"":(n.num=i,null!==n.icon&&(r="<span class='basicContext__icon "+n.icon+"'></span>"),n.type===t?o="\n		       <tr class='basicContext__item "+n["class"]+"'>\n		           <td class='basicContext__data' data-num='"+n.num+"'>"+r+n.title+"</td>\n		       </tr>\n		       ":n.type===e&&(o="\n		       <tr class='basicContext__item basicContext__item--separator'></tr>\n		       "),o)},r=function(n){var t="";return t+="\n	        <div class='basicContextContainer'>\n	            <div class='basicContext'>\n	                <table>\n	                    <tbody>\n	        ",n.forEach(function(n,e){return t+=o(n,e)}),t+="\n	                    </tbody>\n	                </table>\n	            </div>\n	        </div>\n	        "},a=function(){var n=arguments.length<=0||void 0===arguments[0]?{}:arguments[0],t={x:n.clientX,y:n.clientY};if("touchend"===n.type&&(null==t.x||null==t.y)){var e=n.changedTouches;null!=e&&e.length>0&&(t.x=e[0].clientX,t.y=e[0].clientY)}return(null==t.x||t.x<0)&&(t.x=0),(null==t.y||t.y<0)&&(t.y=0),t},s=function(n,t){var e=a(n),i=e.x,l=e.y,o={width:window.innerWidth,height:window.innerHeight},r={width:t.offsetWidth,height:t.offsetHeight};i+r.width>o.width&&(i-=i+r.width-o.width),l+r.height>o.height&&(l-=l+r.height-o.height),r.height>o.height&&(l=0,t.classList.add("basicContext--scrollable"));var s=e.x-i,u=e.y-l;return{x:i,y:l,rx:s,ry:u}},u=function(){var n=arguments.length<=0||void 0===arguments[0]?{}:arguments[0];return null==n.fn?!1:n.visible===!1?!1:n.disabled===!0?!1:(i("td[data-num='"+n.num+"']").onclick=n.fn,i("td[data-num='"+n.num+"']").oncontextmenu=n.fn,!0)},c=function(t,e,l,o){var a=r(t);document.body.insertAdjacentHTML("beforeend",a),null==n&&(n=document.body.style.overflow,document.body.style.overflow="hidden");var c=i(),d=s(e,c);return c.style.left=d.x+"px",c.style.top=d.y+"px",c.style.transformOrigin=d.rx+"px "+d.ry+"px",c.style.opacity=1,null==l&&(l=f),c.parentElement.onclick=l,c.parentElement.oncontextmenu=l,t.forEach(u),"function"==typeof e.preventDefault&&e.preventDefault(),"function"==typeof e.stopPropagation&&e.stopPropagation(),"function"==typeof o&&o(),!0},d=function(){var n=i();return null==n||0===n.length?!1:!0},f=function(){if(d()===!1)return!1;var t=document.querySelector(".basicContextContainer");return t.parentElement.removeChild(t),null!=n&&(document.body.style.overflow=n,n=null),!0};return{ITEM:t,SEPARATOR:e,show:c,visible:d,close:f}});
-},{}],11:[function(require,module,exports){
+},{"./util.js":8,"knockout":11}],11:[function(require,module,exports){
 /*!
  * Knockout JavaScript library v3.4.0
  * (c) Steven Sanderson - http://knockoutjs.com/
@@ -7219,4 +6008,157 @@ ko.exportSymbol('nativeTemplateEngine', ko.nativeTemplateEngine);
 }());
 })();
 
-},{}]},{},[7]);
+},{}],8:[function(require,module,exports){
+
+// Binds the value of x to value at location firebase.
+exports.bindVal = function(firebase, x) {
+  firebase.on("value", function(snapshot) { return x = snapshot.val(); });
+};
+
+// Binds the function f to the value at location firebase.
+// Whenever the firebase value changes, f is called with the new value.
+exports.bindFunc = function(firebase, f) {
+  firebase.on("value", function(snapshot) { return f(snapshot.val()); });
+};
+
+// Returns a random element of the array.
+exports.randomPick = function(array) {
+  return array[Math.floor(Math.random()*array.length)];
+};
+
+exports.randomIndex = function(array) {
+  return Math.floor(Math.random() * array.length);
+};
+
+// Returns an array of unique random elements of an array.
+exports.randomPicks = function(array, n) {
+  array = array.slice(); // Clone array so as not to mutate it.
+  var picks = [];
+  for (var i = 0; i < array.length && i < n; i++) {
+    var index = Math.floor(Math.random()*array.length);
+    picks.push(array.splice(index, 1)[0]);
+  }
+  return picks;
+};
+
+// Inserts item into array at a random location.
+// Returns the array for convenience.
+exports.randomInsert = function(array, item) {
+  var spliceIndex = Math.floor((array.length+1)*Math.random());
+  array.splice(spliceIndex, 0, item);
+};
+
+// Object forEach, calls func with (val, key)
+exports.forEach = function(obj, func) {
+  Object.keys(obj).forEach(function(key) { return func(obj[key], key); });
+};
+
+exports.size = function(obj) {
+  return Object.keys(obj).length;
+};
+
+exports.values = function(obj) {
+  return Object.keys(obj).map(function(key) {
+    return obj[key];
+  });
+};
+
+exports.find = function(arr, cond) {
+  for (var i = 0; i < arr.length; i++) {
+    if (cond(arr[i])) {
+      return arr[i];
+    }
+  }
+  return undefined;
+};
+
+exports.findIndex = function(arr, cond) {
+  for (var i = 0; i < arr.length; i++) {
+    if (cond(arr[i])) {
+      return i;
+    }
+  }
+  return -1;
+};
+
+exports.findKey = function(obj, cond) {
+  for (var key in obj) {
+    if (cond(obj[key], key)) {
+      return key;
+    }
+  }
+  return undefined;
+};
+
+exports.contains = function(arr, item) {
+  return arr.indexOf(item) !== -1;
+};
+
+// Counts the number of items in arr that meet cond
+exports.count = function(arr, cond) {
+  var count = 0;
+  for (var i = 0; i < arr.length; i++) {
+    if (cond(arr[i])) {
+      count++;
+    }
+  }
+  return count;
+};
+
+// Evaluates an obsArray of observables
+exports.evaluate = function(obsArray) {
+  return obsArray.peek().map(function(val) { return val(); });
+};
+
+exports.loadJSON = function(callback) {
+  // Found online, JSON parse function
+  var xobj = new XMLHttpRequest();
+  xobj.overrideMimeType("application/json");
+  xobj.open('GET', 'components/data.json', true);
+  xobj.onreadystatechange = function () {
+    if (xobj.readyState == 4 && xobj.status == "200") {
+      // Required use of an anonymous callback as .open will NOT return a value but
+      // simply returns undefined in asynchronous mode
+      callback(xobj.responseText);
+    }
+  };
+  xobj.send(null);
+};
+
+// Options should have the following properties:
+// text - main text content
+// buttonText - button title
+// buttonFunc - button execute function
+// color - color object with color and alt color
+exports.alert = function(options) {
+  console.warn('ALERT');
+  var color = options.color;
+  var dom = "<div class='alert'>" +
+    "<div class='alert_text'>" + options.text + "</div>" +
+    "<button class='alert_button' style='background-color:" + color.alt +
+      ";border-color:" + color.color + ";'>" + options.buttonText + "</button>" +
+  "</div>";
+  $('#game_content').hide();
+  $('body').prepend(dom);
+  $('.alert_button').on('click', function() {
+    $('.alert').remove();
+    $('#game_content').show();
+    options.buttonFunc();
+  });
+};
+
+},{}],6:[function(require,module,exports){
+
+State = {
+  JOIN:     1,
+  INIT:     2,
+  POLL:     3,
+  RESPOND:  4,
+  GUESS:    5,
+  SCORE:    6,
+  RECAP:    7
+};
+
+module.exports = State;
+
+},{}]},{},[]);

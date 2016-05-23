@@ -8,84 +8,120 @@ var State = require('./State.js');
 var util = require('./util.js');
 
 // Handles preparing the game and moving between states
-function Game(app, gameObj, playerObj, isWatching) {
+function Game() {
   var self = this;
-  this.app = app;
-  this.gameObj = gameObj;
-  this.playerObj = playerObj;
-  this.isWatching = isWatching;
+  var stateReady = false;
 
-  this.log = ko.fireArray(this.gameObj.child('log'));
+  this.database = new Firebase('https://thingsgame.firebaseio.com/');
+  this.database.once('value').then(function(snapshot) {
+    self.gameObj = null;
+    self.playerObj = null;
+    self.isWatching = null;
+    self.getGameData(snapshot);
 
-  this.gameName = ko.fireObservable(this.gameObj.child('animal'));
-  this.playerName = ko.fireObservable(this.playerObj.child('name'), function(name) {
-    if (name === null) {
-      // You've been removed
-      window.location.hash = "";
-      window.location.reload();
-    }
-  });
-  this.isHost = ko.fireObservable(this.playerObj.child('isHost'));
+    self.gameName = ko.fireObservable(self.gameObj.child('animal'));
+    self.playerName = ko.fireObservable(self.playerObj.child('name'), function(name) {
+      if (name === null) {
+        // You've been removed
+        document.location.href = "/";
+      }
+    });
+    self.isHost = ko.fireObservable(self.playerObj.child('isHost'));
 
-  this.state = ko.fireObservable(this.gameObj.child('state'));
-  this.round = ko.fireObservable(this.gameObj.child('round'));
+    self.state = ko.fireObservable(self.gameObj.child('state'), function(newState) {
+      if (!stateReady) {
+        stateReady = true;
+      }
+      else {
+        return self.onStateChange(newState);
+      }
+    });
 
-  this.question = ko.fireObservable(this.gameObj.child('question'));
+    self.round = ko.fireObservable(self.gameObj.child('round'));
+    self.question = ko.fireObservable(self.gameObj.child('question'));
+    self.guessed = ko.fireObservable(self.playerObj.child('guessed'));
+    self.responded = ko.fireObservable(self.playerObj.child('responded'));
+    self.random = ko.fireObservable(self.playerObj.child('random'));
 
-  this.guessed = ko.fireObservable(this.playerObj.child('guessed'));
-  this.responded = ko.fireObservable(this.playerObj.child('responded'));
+    // Show prompt computeds
+    self.showBeginButton = ko.computed(function() {
+      return self.state() === State.JOIN && self.isHost();
+    });
+    self.showCompleteButton = ko.computed(function() {
+      return self.state() === State.GUESS && self.isHost();
+    });
+    self.showSubmitPrompt = ko.computed(function() {
+      return !self.responded() && self.state() === State.RESPOND;
+    });
 
-  // Show prompt computeds
-  this.showBeginButton = ko.computed(function() {
-    return self.state() === State.JOIN && self.isHost();
-  });
-  this.showCompleteButton = ko.computed(function() {
-    return self.state() === State.GUESS && self.isHost();
-  });
-  this.showSubmitPrompt = ko.computed(function() {
-    return !self.responded() && self.state() === State.RESPOND;
-  });
+    util.loadJSON(function(response) {
+      self.jsonData = JSON.parse(response);
+    });
 
-  this.players = null;
-  this.responses = null;
-  this.poll = null;
-
-  // Set the game and player names before building the dom
-  var loadBody = $.Deferred();
-  var domFile = this.isWatching ? 'components/watch.html' : 'components/game.html';
-  $(document.body).load(domFile, function() { return loadBody.resolve(); });
-  loadBody.promise().then(function() {
     self.players = new Players(self);
     self.responses = new Responses(self);
     self.poll = new Poll(self);
-    ko.applyBindings(self, $('#game_content').get(0));
+
     if (self.state() === State.INIT) {
       self.onStateChange(State.INIT);
     }
-    self.log.subscribe(function(logUpdate) {
-      logUpdate.forEach(function(update) {
-        console.warn('update', update);
-        if (self.players.isMovingPlayers()) {
-          console.warn('isMoving');
-          var unhandled = self.unhandledLog();
-          unhandled.push(update.value);
-          self.unhandledLog(unhandled);
-        }
-        else {
-          console.warn('notMoving');
-          self.players.movePlayers([update.value]);
-        }
-      });
-    }, null, 'arrayChange');
-  });
 
-  this.unhandledLog = ko.observable([]);
+    // Only apply bindings after game data is found
+    ko.applyBindings(window.game);
 
-  // Subscription skips initial setting notice
-  this.state.subscribe(function(newState) {
-    return self.onStateChange(newState);
+    $('#loading_screen').css('display', 'none');
   });
 }
+
+Game.prototype.getGameData = function(snapshot) {
+  var self = this;
+  // Get keys from URL
+  var urlGameKey = null;
+  var urlPlayerKey = null;
+  var urlWatcherKey = null;
+  var urlItems = window.location.search.substring(1).split('&');
+  urlItems.forEach(function(item) {
+    console.warn(item, item.slice(0, 1));
+    switch (item.slice(0, 1)) {
+      case "g":
+        console.warn('its g', item.slice(2));
+        urlGameKey = item.slice(2);
+        break;
+      case "p":
+        urlPlayerKey = item.slice(2);
+        break;
+      case "w":
+        urlWatcherKey = item.slice(2);
+        break;
+    }
+  });
+
+  var games = snapshot.val();
+
+  // If game does not exist, URL connection fails
+  if (!urlGameKey || !games || !(urlGameKey in games)) {
+    window.location.href = "/"; // Back to homepage
+  }
+
+  // Game available
+  this.gameObj = snapshot.child(urlGameKey).ref();
+
+  var players = games[this.gameObj.key()].players;
+  var watchers = games[this.gameObj.key()].watchers;
+
+  var noPlayer = !urlPlayerKey || !players || !(urlPlayerKey in players);
+  var noWatcher = !urlWatcherKey || !watchers || !(urlWatcherKey in watchers);
+
+  if (!noPlayer) {
+    this.playerObj = this.gameObj.child("players").child(urlPlayerKey);
+  }
+  else if (!noWatcher) {
+    this.playerObj = this.gameObj.child("watchers").child(urlWatcherKey);
+  }
+  else {
+    window.location.href = "/"; // Back to homepage
+  }
+};
 
 Game.prototype.onClickSettings = function(event) {
   var self = this;
@@ -147,7 +183,6 @@ Game.prototype.onStateChange = function(newState) {
       });
       if (this.isHost()) {
         this.gameObj.child('poll').update({
-          allowVoting: false,
           votes: null,
           spinner: null,
           timeout: null
@@ -180,8 +215,9 @@ Game.prototype.onNextRound = function() {
 Game.prototype.removeFromGame = function(playerKey) {
   var self = this;
   if (playerKey === this.playerObj.key() && this.isHost()) {
+    // TODO: Send out log that host has left
     // The host is leaving, game is over
-    this.app.database.child(this.gameObj.key()).set(null);
+    this.database.child(this.gameObj.key()).set(null);
   }
   else {
     // Wake the player up (in case they were asleep) for accounting and moving purposes
@@ -199,10 +235,15 @@ Game.prototype.removeFromGame = function(playerKey) {
     }).then(function() {
       // Remove player entirely
       // This will not execute until numPlayers transaction succeeds
-      self.gameObj.child('players').child(playerKey).child('removed').set(true);
-      self.gameObj.child('log').push({
-        event: 'removed',
-        player: playerKey
+      self.gameObj.child('players').child(playerKey).once('value', function(player) {
+        player = player.val();
+        player.playerKey = playerKey;
+        self.gameObj.child('removedPlayers').push(player);
+        self.gameObj.child('players').child(playerKey).remove();
+        self.gameObj.child('log').push({
+          event: 'removed',
+          playerKey: playerKey
+        });
       });
     });
   }
@@ -213,11 +254,15 @@ Game.prototype.onSubmit = function() {
   if (input.val() === "") {
     return;
   }
-  this.playerObj.child('responded').set(true);
+  this.playerObj.update({
+    responded: true,
+    info: 'X'
+  });
   var res = this.gameObj.child('responses').push({
     playerKey: this.playerObj.key(),
     response: input.val(),
-    eliminated: false
+    eliminated: false,
+    random: this.random()
   });
   this.gameObj.child('responses').child(res.key()).setPriority(Math.random());
   input.val("");

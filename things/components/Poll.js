@@ -15,7 +15,6 @@ function Poll(game) {
   this.pollObj = this.game.gameObj.child('poll');
 
   this.choices = ko.fireArray(this.pollObj.child('choices'));
-  this.allowVoting = ko.fireObservable(this.pollObj.child('allowVoting'));
   this.votes = ko.fireArray(this.pollObj.child('votes'));
 
   util.bindFunc(this.pollObj.child('timeout'), this.onTimeoutChange.bind(this));
@@ -25,7 +24,7 @@ function Poll(game) {
 }
 
 Poll.prototype.pickChoices = function() {
-  var allQuestions = this.game.app.jsonData.questions;
+  var allQuestions = this.game.jsonData.questions;
   var picks = util.randomPicks(allQuestions, 3);
   var labels = ['A', 'B', 'C'];
   for (var i = 0; i < 3; i++) {
@@ -33,10 +32,7 @@ Poll.prototype.pickChoices = function() {
       label: labels[i], text: picks[i]
     });
   }
-  this.pollObj.update({
-    allowVoting: true,
-    timeout: 'ready'
-  });
+  this.pollObj.child('timeout').set('ready');
 };
 
 Poll.prototype.onVotesUpdate = function(votes) {

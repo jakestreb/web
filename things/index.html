@@ -1,18 +1,19 @@
 <!DOCTYPE html>
 <html>
 	<head>
-	<script src='https://cdn.firebase.com/js/client/2.4.1/firebase.js'></script>
-	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
-	<script type="text/javascript" src="static/bundle.js"></script>
-	<meta name="viewport" content='width=400'>
-	<link rel="stylesheet" href="node_modules/basiccontext/dist/basicContext.min.css">
-	<link rel="stylesheet" href="node_modules/basiccontext/dist/themes/default.min.css">
-	<link rel="stylesheet" href="node_modules/font-awesome/css/font-awesome.min.css">
-	<link rel="stylesheet" type="text/css" href="components/App.css">
-	<link rel="stylesheet" type="text/css" href="components/Game.css">
-	<link rel="stylesheet" type="text/css" href="components/Players.css">
-	<link rel="stylesheet" type="text/css" href="components/Responses.css">
-	<link rel="stylesheet" type="text/css" href="components/Poll.css">
+		<script src='https://cdn.firebase.com/js/client/2.4.1/firebase.js'></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+		<script src="static/bundle.js"></script>
+		<script src="static/app-bundle.js"></script>
+		<meta name="viewport" content='width=400'>
+		<link rel="stylesheet" href="node_modules/basiccontext/dist/basicContext.min.css">
+		<link rel="stylesheet" href="node_modules/basiccontext/dist/themes/default.min.css">
+		<link rel="stylesheet" href="node_modules/font-awesome/css/font-awesome.min.css">
+		<link rel="stylesheet" type="text/css" href="components/App.css">
+		<link rel="stylesheet" type="text/css" href="components/Game.css">
+		<link rel="stylesheet" type="text/css" href="components/Players.css">
+		<link rel="stylesheet" type="text/css" href="components/Responses.css">
+		<link rel="stylesheet" type="text/css" href="components/Poll.css">
 	</head>
 	<body>
 		<div id="login_page">
@@ -28,13 +29,13 @@
 		    			click: $parent.selectGame.bind($parent)"></div>
 		    	</div>
 		    	<div class="button_group">
-						<button id="join" class="big_button" data-bind="enable: selectedGame">Join</button>
-						<button id="watch" class="big_button" data-bind="enable: selectedGame">Watch</button>
+						<button id="join" class="big_button" data-bind="enable: selectedGame, click: onJoinButton">Join</button>
+						<button id="watch" class="big_button" data-bind="enable: selectedGame, click: onWatchButton">Watch</button>
 					</div>
 				</div>
 				<div id="host_container" class="login_flex_item">
 					<div class="button_group">
-						<button id="host" class="big_button" type="button">Host</button>
+						<button id="host" class="big_button" data-bind="click: onHostButton">Host</button>
 					</div>
 				</div>
 			</div>
@@ -56,9 +57,9 @@
 						</div>
 					</div>
 					<div class="input_container name">
-						<input id="name" placeholder="Name" maxlength="12" data-bind="enterKey: $root.onSubmitNameButton.bind($root)">
+						<input id="name" placeholder="Name" maxlength="12" data-bind="enterKey: onSubmitNameButton">
 	        </div>
-					<button id="submit_name" data-bind="click: $root.onSubmitNameButton.bind($root), style: { backgroundColor: selectedColor().alt, borderColor: selectedColor().color }">
+					<button id="submit_name" data-bind="click: onSubmitNameButton, style: { backgroundColor: selectedColor().alt, borderColor: selectedColor().color }">
 						<span class="fa fa-arrow-right"></span>
 					</button>
 				</div>

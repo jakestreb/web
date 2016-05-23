@@ -99,6 +99,21 @@ exports.evaluate = function(obsArray) {
   return obsArray.peek().map(function(val) { return val(); });
 };
 
+exports.loadJSON = function(callback) {
+  // Found online, JSON parse function
+  var xobj = new XMLHttpRequest();
+  xobj.overrideMimeType("application/json");
+  xobj.open('GET', 'components/data.json', true);
+  xobj.onreadystatechange = function () {
+    if (xobj.readyState == 4 && xobj.status == "200") {
+      // Required use of an anonymous callback as .open will NOT return a value but
+      // simply returns undefined in asynchronous mode
+      callback(xobj.responseText);
+    }
+  };
+  xobj.send(null);
+};
+
 // Options should have the following properties:
 // text - main text content
 // buttonText - button title
