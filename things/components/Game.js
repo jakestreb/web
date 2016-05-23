@@ -16,7 +16,6 @@ function Game() {
   this.database.once('value').then(function(snapshot) {
     self.gameObj = null;
     self.playerObj = null;
-    self.isWatching = null;
     self.getGameData(snapshot);
 
     self.gameName = ko.fireObservable(self.gameObj.child('animal'));
@@ -81,10 +80,8 @@ Game.prototype.getGameData = function(snapshot) {
   var urlWatcherKey = null;
   var urlItems = window.location.search.substring(1).split('&');
   urlItems.forEach(function(item) {
-    console.warn(item, item.slice(0, 1));
     switch (item.slice(0, 1)) {
       case "g":
-        console.warn('its g', item.slice(2));
         urlGameKey = item.slice(2);
         break;
       case "p":
@@ -192,7 +189,8 @@ Game.prototype.onStateChange = function(newState) {
     case State.GUESS:
       this.playerObj.update({
         responded: null,
-        guessed: false
+        guessed: false,
+        info: null
       });
       break;
     case State.SCORE:

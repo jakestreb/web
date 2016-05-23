@@ -159,6 +159,7 @@ Players.prototype.movePlayerDom = function(update) {
     change.from = getIndex(change.playerKey);
     change.to = getIndex(change.toPlayerKey);
     frames[change.from].moving(change.to < change.from ? 'left_out' : 'right_out');
+    $('.frame_' + change.to + ' .sign').addClass('unlifted');
     setTimeout(function() {
       outCount++;
       if (outCount === changes.length) {

@@ -27,9 +27,7 @@
       <div id="main_content">
         <div id="header">
           <div id="header_name" data-bind="text: playerName"></div>
-          <div id="header_host" data-bind="text: $root.isHost() ? '(host)' : ''"></div>
           <div id="header_game" data-bind="text: gameName"></div>
-          <div id="settings" class='settings_menu fa fa-bars' data-bind="click: function(context, event) { onClickSettings(event); }"></div>
         </div>
         <div id="questions" class="flexy">
           <div class="timer" data-bind="visible: state() === State.POLL">
@@ -39,32 +37,11 @@
           </div>
           <div id="things_prompt">Things...</div>
           <div id="choices" data-bind="foreach: poll.choices">
-            <div class="choice_container" data-bind="click: $parent.poll.onVote.bind($parent.poll), css: label">
+            <div class="choice_container" data-bind="css: label">
               <div class="choice_label" data-bind="text: label, visible: $root.state() === State.POLL"></div>
               <div class="choice" data-bind="text: text"></div>
             </div>
           </div>
-        </div>
-        <div id="guessed_container", data-bind="visible: state() === State.GUESS">
-          <button id="guessed" data-bind="disable: guessed, click: onGuessed()"><span class="fa fa-strikethrough"></span></button>
-          <button id="complete" data-bind="visible: isHost, click: $root.onGuessingComplete.bind($root)"><span class="fa fa-arrow-right"></span></button>
-        </div>
-        <div id="prompt_container" class="flexy" data-bind="visible: state() !== State.GUESS">
-          <div id="submit_container" data-bind="visible: showSubmitPrompt">
-            <div class="input_container">
-              <input id="response" maxlength="120" data-bind="enterKey: $root.onSubmit.bind($root)"></input>
-            </div>
-            <button id="submit" data-bind="click: $root.onSubmit.bind($root)">
-              <span class="fa fa-arrow-right"></span>
-            </button>
-          </div>
-          <div id="scoring_container" data-bind="visible: isHost">
-            <button id="set_scores" data-bind="visible: state() === State.SCORE, click: players.onSetScores.bind(players)"><span class="fa fa-floppy-o"></span></button>
-            <button id="next_round" data-bind="visible: state() === State.RECAP, click: $root.onNextRound.bind($root)"><span class="fa fa-arrow-right"></span></button>
-          </div>
-        </div>
-        <div id="begin_container" class="flexy" data-bind="visible: showBeginButton">
-          <button id="begin" data-bind="click: $root.onNextRound.bind($root)"><span class="fa fa-play"></span></button>
         </div>
         <div id="responses" class="flexy" data-bind="foreach: responses.responses, visible: state() === State.GUESS">
           <div class='response' data-bind="style: { transform: 'rotate(' + random + 'deg)' }">
@@ -77,7 +54,6 @@
       <div id="main_content_trim"></div>
       <div id="players" data-bind="foreach: players.frames">
         <div class='frame' data-bind="attr: { 'class': 'frame frame_' + id }, css: { collapsed: collapsed }">
-          <div class='player_menu fa fa-caret-down' data-bind='visible: $root.isHost, click: function(frame, event) { $root.players.onClickPlayerMenu(frame, event); }'></div>
           <div class='frame_content'>
             <div class='body' data-bind='style: { opacity: player() ? (player().asleep ? "0.2" : "1.0") : "0.0" }, css: moving, visible: !empty()' >
               <div class='head' data-bind='style: { backgroundColor: player() ? player().color : "white" }'></div>
@@ -88,11 +64,6 @@
             </div>
           </div>
           <div class='player_name' data-bind='text: player() ? player().name : ""'></div>
-          <div class='score_adjuster' data-bind="visible: $parent.players.showAdjusters">
-            <div class='minus' data-bind="click: function() { scoreAdjustment(scoreAdjustment() - 1); }">-</div>
-            <div class='score_adjustment' data-bind='text: scoreAdjustment'></div>
-            <div class='plus' data-bind="click: function() { scoreAdjustment(scoreAdjustment() + 1); }">+</div>
-          </div>
         </div>
       </div>
     </div>

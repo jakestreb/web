@@ -59,7 +59,7 @@ App.prototype.onJoinButton = function(watchOnly) {
       color: "#E74C3C",
       random: 0
     });
-    window.location.href += "play?g=" + this.foundGame.key() + "&w=" + fakePlayerObj.key();
+    window.location.href += "watch?g=" + this.foundGame.key() + "&w=" + fakePlayerObj.key();
   }
 };
 

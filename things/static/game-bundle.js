@@ -1,13 +1,12 @@
 require=(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({12:[function(require,module,exports){
 
-var ko = require('knockout');
 var Game = require('../components/Game.js');
 
 $(function() {
   window.game = new Game();
 });
 
-},{"../components/Game.js":2,"knockout":11}],2:[function(require,module,exports){
+},{"../components/Game.js":2}],2:[function(require,module,exports){
 
 var ko = require('./koFire.js');
 var basicContext = require('basiccontext');
@@ -26,7 +25,6 @@ function Game() {
   this.database.once('value').then(function(snapshot) {
     self.gameObj = null;
     self.playerObj = null;
-    self.isWatching = null;
     self.getGameData(snapshot);
 
     self.gameName = ko.fireObservable(self.gameObj.child('animal'));
@@ -91,10 +89,8 @@ Game.prototype.getGameData = function(snapshot) {
   var urlWatcherKey = null;
   var urlItems = window.location.search.substring(1).split('&');
   urlItems.forEach(function(item) {
-    console.warn(item, item.slice(0, 1));
     switch (item.slice(0, 1)) {
       case "g":
-        console.warn('its g', item.slice(2));
         urlGameKey = item.slice(2);
         break;
       case "p":
@@ -202,7 +198,8 @@ Game.prototype.onStateChange = function(newState) {
     case State.GUESS:
       this.playerObj.update({
         responded: null,
-        guessed: false
+        guessed: false,
+        info: null
       });
       break;
     case State.SCORE:
@@ -727,6 +724,7 @@ Players.prototype.movePlayerDom = function(update) {
     change.from = getIndex(change.playerKey);
     change.to = getIndex(change.toPlayerKey);
     frames[change.from].moving(change.to < change.from ? 'left_out' : 'right_out');
+    $('.frame_' + change.to + ' .sign').addClass('unlifted');
     setTimeout(function() {
       outCount++;
       if (outCount === changes.length) {

@@ -77,8 +77,8 @@ pie {
   }
 }
 
-.choice_container.selected {
-  background-color: #CCC;
+.choice_container.selected > .choice {
+  background-color: #888;
 }
 .choice_container.winner {
   color: #555;
