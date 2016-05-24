@@ -62,7 +62,7 @@ function Game() {
       return !self.responded() && self.state() === State.RESPOND;
     });
 
-    util.loadJSON(function(response) {
+    util.loadJSON('../components/data.json', function(response) {
       self.jsonData = JSON.parse(response);
     });
 

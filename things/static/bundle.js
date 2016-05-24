@@ -6110,11 +6110,11 @@ exports.evaluate = function(obsArray) {
   return obsArray.peek().map(function(val) { return val(); });
 };
 
-exports.loadJSON = function(callback) {
+exports.loadJSON = function(url, callback) {
   // Found online, JSON parse function
   var xobj = new XMLHttpRequest();
   xobj.overrideMimeType("application/json");
-  xobj.open('GET', '../components/data.json', true);
+  xobj.open('GET', url, true);
   xobj.onreadystatechange = function() {
     if (xobj.readyState == 4 && xobj.status == "200") {
       // Required use of an anonymous callback as .open will NOT return a value but

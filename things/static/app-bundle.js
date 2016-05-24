@@ -46,7 +46,7 @@ function App() {
   this.activeGames = ko.fireArray(this.database);
 
   // Load JSON data
-  util.loadJSON(function(response) {
+  util.loadJSON('components/data.json', function(response) {
     self.jsonData = JSON.parse(response);
     self.colors(self.jsonData.colors.map(function(swatch) { return ko.observableArray(swatch); }));
   });
