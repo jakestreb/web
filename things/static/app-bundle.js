@@ -3,6 +3,9 @@ require=(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof requ
 var ko = require('knockout');
 var App = require('./components/App.js');
 
+// - Responses overflow in some cases
+// - Use Shabby quotation marks, flip right one
+
 // Bugs:
 // - Leaving game as host sometimes does not fully remove that game
 

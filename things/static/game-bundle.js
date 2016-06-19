@@ -31,7 +31,7 @@ function Game() {
     self.playerName = ko.fireObservable(self.playerObj.child('name'), function(name) {
       if (name === null) {
         // You've been removed
-        document.location.href = "/";
+        document.location.href = "/things";
       }
     });
     self.isHost = ko.fireObservable(self.playerObj.child('isHost'));
@@ -106,7 +106,7 @@ Game.prototype.getGameData = function(snapshot) {
 
   // If game does not exist, URL connection fails
   if (!urlGameKey || !games || !(urlGameKey in games)) {
-    window.location.href = "/"; // Back to homepage
+    window.location.href = "/things"; // Back to homepage
   }
 
   // Game available
@@ -125,7 +125,7 @@ Game.prototype.getGameData = function(snapshot) {
     this.playerObj = this.gameObj.child("watchers").child(urlWatcherKey);
   }
   else {
-    window.location.href = "/"; // Back to homepage
+    window.location.href = "/things"; // Back to homepage
   }
 };
 

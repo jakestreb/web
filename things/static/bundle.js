@@ -6135,8 +6135,8 @@ exports.alert = function(options) {
   var color = options.color;
   var dom = "<div class='alert'>" +
     "<div class='alert_text'>" + options.text + "</div>" +
-    "<button class='alert_button' style='background-color:" + color.alt +
-      ";border-color:" + color.color + ";'>" + options.buttonText + "</button>" +
+    "<button class='alert_button' style='background-color:" + color +
+      ";border-color:" + color + ";'>" + options.buttonText + "</button>" +
   "</div>";
   $('#game_content').hide();
   $('body').prepend(dom);

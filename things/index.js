@@ -2,6 +2,9 @@
 var ko = require('knockout');
 var App = require('./components/App.js');
 
+// - Responses overflow in some cases
+// - Use Shabby quotation marks, flip right one
+
 // Bugs:
 // - Leaving game as host sometimes does not fully remove that game
 
