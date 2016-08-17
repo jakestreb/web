@@ -1,3 +1,6 @@
 [submodule "booking"]
 	path = booking
 	url = https://github.com/jakestreb/booking
+[submodule "fluxteq"]
+	path = fluxteq
+	url = https://github.com/jakestreb/fluxteq.git
