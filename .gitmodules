@@ -4,3 +4,6 @@
 [submodule "fluxteq"]
 	path = fluxteq
 	url = https://github.com/jakestreb/fluxteq.git
+[submodule "gateway"]
+	path = gateway
+	url = https://github.com/jakestreb/gateway.git
